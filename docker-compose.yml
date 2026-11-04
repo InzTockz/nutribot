@@ -19,10 +19,11 @@ services:
     image: mysql:8.0.46
     container_name: nutribot-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root123
+      # Sprint 4: las claves se leen del archivo .env de esta carpeta (excluido de Git). Ver .env.example.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD en el archivo .env}
       MYSQL_DATABASE: nutribot
-      MYSQL_USER: nutribot
-      MYSQL_PASSWORD: nutribot123
+      MYSQL_USER: ${DB_USER:-nutribot}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "3307:3306"   # 3307 en el host para NO chocar con tu MySQL nativo (3306)
     volumes:

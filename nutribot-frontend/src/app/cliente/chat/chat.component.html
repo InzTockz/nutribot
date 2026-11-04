@@ -1,0 +1,59 @@
+<div class="pagina">
+  <div class="chat">
+    <header class="cabecera">
+      <div class="avatar">🤖</div>
+      <div>
+        <b>NutriBot IA</b>
+        <span><i class="punto"></i>Asistente inteligente de Battilana Nutrición</span>
+      </div>
+    </header>
+
+    <div class="mensajes" #lista>
+      <div class="msg bot">¡Bienvenido a Battilana Nutrición S.A.C.! 👋
+¿En qué puedo ayudarte hoy?</div>
+
+      <div class="sugerencias" *ngIf="messages.length === 0">
+        <button type="button" *ngFor="let s of sugerencias" (click)="usarSugerencia(s.consulta)">{{ s.texto }}</button>
+      </div>
+
+      <ng-container *ngFor="let m of messages">
+        <div class="msg" [class.user]="m.role === 'user'" [class.bot]="m.role === 'bot'">{{ m.text }}</div>
+
+        <!-- HU13: valoracion -->
+        <div *ngIf="m.role === 'bot' && m.interaccionId" class="valoracion">
+          <ng-container *ngIf="!m.valoracion; else gracias">
+            <span>¿Te sirvió esta respuesta?</span>
+            <button type="button" title="Útil" (click)="valorar(m, 'UTIL')">👍</button>
+            <button type="button" title="No útil" (click)="valorar(m, 'NO_UTIL')">👎</button>
+          </ng-container>
+          <ng-template #gracias>
+            <span>Gracias por tu valoración {{ m.valoracion === "UTIL" ? "👍" : "👎" }}</span>
+          </ng-template>
+        </div>
+
+        <!-- HU07/HU08: derivacion por WhatsApp -->
+        <button *ngIf="m.derivar" type="button" class="whatsapp" (click)="talkToAdvisor()">
+          Hablar con un asesor por WhatsApp
+        </button>
+
+        <!-- HU09: formulario cuando no hay asesor disponible -->
+        <div *ngIf="m.pedirDatos" class="formulario">
+          <p>No hay asesores disponibles ahora. Déjanos tus datos y te contactaremos:</p>
+          <input [(ngModel)]="bitacoraNombre" [ngModelOptions]="{ standalone: true }" placeholder="Tu nombre" />
+          <input [(ngModel)]="bitacoraTelefono" [ngModelOptions]="{ standalone: true }" placeholder="Tu número de contacto" />
+          <button type="button" (click)="enviarBitacora()" [disabled]="!bitacoraNombre.trim() || !bitacoraTelefono.trim()">
+            Enviar mis datos
+          </button>
+        </div>
+      </ng-container>
+
+      <div *ngIf="loading" class="msg bot escribiendo">NutriBot está escribiendo...</div>
+    </div>
+
+    <form class="redactor" (ngSubmit)="send()">
+      <input [(ngModel)]="input" name="input" placeholder="Escribe tu mensaje..." autocomplete="off" [disabled]="loading" />
+      <button type="submit" title="Enviar" [disabled]="loading || !input.trim()">➤</button>
+    </form>
+    <p class="pie">NutriBot puede cometer errores. Verifica la información importante.</p>
+  </div>
+</div>

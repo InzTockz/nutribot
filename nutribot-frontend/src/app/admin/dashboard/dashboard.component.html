@@ -1,0 +1,49 @@
+<div class="nb-cab">
+  <div>
+    <h2>{{ saludo() }}, {{ auth.nombre }}</h2>
+    <p>Lo que pasó hoy con NutriBot y lo que requiere tu atención.</p>
+  </div>
+</div>
+<p *ngIf="error" class="nb-error">{{ error }}</p>
+
+<div class="nb-kpis" *ngIf="hoy && quincena">
+  <div class="nb-kpi"><div class="ico">💬</div><div>
+    <div class="l">Consultas hoy</div><div class="v">{{ hoy.totalConsultas }}</div>
+    <div class="d">{{ quincena.totalConsultas }} en los últimos 14 días</div></div></div>
+  <div class="nb-kpi ambar"><div class="ico">⏳</div><div>
+    <div class="l">Pendientes por atender</div><div class="v">{{ pendientes.length }}</div>
+    <div class="d">consultas en la bitácora</div></div></div>
+  <div class="nb-kpi" [class.alerta]="quincena.tiempoPromedioSeg !== null && quincena.tiempoPromedioSeg >= 5"><div class="ico">⏱</div><div>
+    <div class="l">Tiempo de respuesta (14 días)</div>
+    <div class="v">{{ quincena.tiempoPromedioSeg !== null ? (quincena.tiempoPromedioSeg | number: "1.2-2") + " s" : "—" }}</div>
+    <div class="d">meta: menos de 5 s</div></div></div>
+  <div class="nb-kpi azul"><div class="ico">🙂</div><div>
+    <div class="l">Satisfacción (14 días)</div><div class="v">{{ pct(quincena.satisfaccion) }}</div>
+    <div class="d">{{ quincena.utiles }} 👍 de {{ quincena.valoradas }} valoraciones</div></div></div>
+</div>
+
+<div class="nb-grid2">
+  <div class="nb-card">
+    <h3>Consultas de los últimos 14 días</h3>
+    <nb-grafico-linea [datos]="serie" etiqueta="Consultas por día" />
+  </div>
+  <div class="nb-card">
+    <h3>Requieren atención <a routerLink="/admin/consultas" class="nb-btn peq sec" style="margin-left:auto;text-decoration:none">Ver todas</a></h3>
+    <table class="nb-tabla" *ngIf="pendientes.length > 0">
+      <thead><tr><th>Cliente</th><th>Consulta</th><th>Espera</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let c of pendientes | slice: 0 : 5">
+          <td><b>{{ c.nombre }}</b></td>
+          <td>{{ c.consulta }}</td>
+          <td><span class="nb-tag" [class.rojo]="horas(c) >= 24" [class.ambar]="horas(c) < 24">{{ horas(c) < 1 ? "< 1 h" : horas(c) + " h" }}</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p *ngIf="pendientes.length === 0" class="nb-vacio">No hay consultas pendientes. 🎉</p>
+  </div>
+</div>
+
+<div class="nb-banda" *ngIf="quincena && quincena.pendientesRevision > 0">
+  <b>{{ quincena.pendientesRevision }} respuestas</b> del bot esperan tu revisión para medir la precisión.
+  <a routerLink="/admin/metricas" class="nb-btn peq sec" style="text-decoration:none">Revisar ahora</a>
+</div>

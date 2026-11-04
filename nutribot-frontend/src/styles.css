@@ -1,1 +1,75 @@
-/* You can add global styles to this file, and also import other style files */
+/* ============================================================
+   NutriBot — estilos globales (Sprint 4)
+   Paleta y componentes visuales compartidos por el panel administrativo.
+   La vista del cliente (chat) tiene sus propios estilos.
+   ============================================================ */
+:root {
+  --verde: #1b6b2f; --verde-2: #2e7d32; --verde-3: #e8f3ea; --verde-4: #f4f9f5;
+  --texto: #1f2a22; --gris: #6b7770; --borde: #e3e8e4; --fondo: #f5f7f6;
+  --ambar: #c77700; --ambar-2: #fff4e0; --rojo: #c62828; --rojo-2: #fdecec; --azul: #1e6fd9; --azul-2: #e8f0fc;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: var(--texto); background: var(--fondo); }
+button, input, select { font-family: inherit; }
+
+/* ----- Encabezado de pagina ----- */
+.nb-cab { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.nb-cab h2 { margin: 0; font-size: 21px; }
+.nb-cab p { margin: 4px 0 0; color: var(--gris); font-size: 13.5px; }
+.nb-cab .nb-acciones { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ----- Botones ----- */
+.nb-btn { border: 0; border-radius: 8px; padding: 9px 14px; font-size: 13.5px; cursor: pointer; background: var(--verde-2); color: #fff; }
+.nb-btn:hover { background: var(--verde); }
+.nb-btn:disabled { background: #a5d6a7; cursor: not-allowed; }
+.nb-btn.sec { background: #fff; color: var(--verde-2); border: 1px solid var(--verde-2); }
+.nb-btn.sec:hover { background: var(--verde-4); }
+.nb-btn.peligro { background: #fff; color: var(--rojo); border: 1px solid #f1b9b9; }
+.nb-btn.peq { padding: 5px 9px; font-size: 12px; }
+.nb-ico { border: 1px solid var(--borde); background: #fff; border-radius: 7px; min-width: 30px; height: 28px; cursor: pointer; font-size: 13px; }
+
+/* ----- Tarjetas de indicadores ----- */
+.nb-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.nb-kpi { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; }
+.nb-kpi .ico { width: 40px; height: 40px; border-radius: 10px; background: var(--verde-3); color: var(--verde); display: grid; place-items: center; font-size: 19px; flex: none; }
+.nb-kpi .l { font-size: 12px; color: var(--gris); }
+.nb-kpi .v { font-size: 24px; font-weight: 700; color: var(--verde); line-height: 1.25; }
+.nb-kpi .d { font-size: 11.5px; color: var(--gris); }
+.nb-kpi.ambar .ico { background: var(--ambar-2); color: var(--ambar); } .nb-kpi.ambar .v { color: var(--ambar); }
+.nb-kpi.azul .ico { background: var(--azul-2); color: var(--azul); } .nb-kpi.azul .v { color: var(--azul); }
+.nb-kpi.alerta { border-color: #ef9a9a; background: #fff8f8; } .nb-kpi.alerta .v { color: var(--rojo); }
+
+/* ----- Tarjetas y rejillas ----- */
+.nb-card { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 16px; min-width: 0; }
+.nb-card h3 { margin: 0 0 10px; font-size: 14.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nb-sub { font-size: 12px; color: var(--gris); margin-top: 6px; }
+.nb-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.nb-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.nb-banda { margin-top: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--verde-4); border: 1px solid #cfe6d4; border-radius: 12px; padding: 12px 16px; font-size: 13px; }
+.nb-banda b { color: var(--verde); }
+.nb-vacio { color: #98a39c; font-size: 13px; text-align: center; padding: 18px 8px; }
+.nb-error { color: var(--rojo); font-size: 13px; }
+.nb-ok { color: var(--verde-2); font-size: 13px; }
+
+/* ----- Tablas ----- */
+.nb-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.nb-tabla th { text-align: left; color: var(--gris); font-weight: 600; font-size: 12px; padding: 9px 10px; border-bottom: 1px solid var(--borde); background: #fafcfb; }
+.nb-tabla td { padding: 10px; border-bottom: 1px solid #eef2ef; vertical-align: top; }
+.nb-tabla tr:hover td { background: #fbfdfb; }
+.nb-tabla tr.sel td { background: var(--verde-4); }
+.nb-nowrap { white-space: nowrap; }
+
+/* ----- Etiquetas ----- */
+.nb-tag { display: inline-block; border-radius: 10px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.nb-tag.verde { background: var(--verde-3); color: var(--verde); }
+.nb-tag.ambar { background: var(--ambar-2); color: var(--ambar); }
+.nb-tag.azul { background: var(--azul-2); color: var(--azul); }
+.nb-tag.rojo { background: var(--rojo-2); color: var(--rojo); }
+.nb-tag.gris { background: #eef1ef; color: #5d6a62; }
+
+/* ----- Filtros ----- */
+.nb-filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+.nb-filtros label { font-size: 11.5px; color: var(--gris); display: flex; flex-direction: column; gap: 4px; }
+.nb-filtros select, .nb-filtros input { border: 1px solid #cfd8d2; border-radius: 7px; padding: 7px 9px; font-size: 13px; background: #fff; }
+.nb-filtros .crece { flex: 1; min-width: 200px; }

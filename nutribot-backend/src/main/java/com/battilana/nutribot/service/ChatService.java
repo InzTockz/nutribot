@@ -9,10 +9,14 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +34,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatService {
 
     private final ChatClient nutribotChatClient;
@@ -37,6 +42,7 @@ public class ChatService {
     private final ChatClient nutribotContextoChatClient;
     private final VectorStore vectorStore;
     private final InteraccionService interaccionService;
+    private final ChatMemory nutribotChatMemory;   // Sprint 4: para liberar las conversaciones inactivas
 
     /** Resultado interno de procesar una consulta: la respuesta, la accion y el camino seguido. */
     private record Resultado(String answer, String accion, CaminoConsulta camino) {
@@ -44,6 +50,14 @@ public class ChatService {
 
     @Value("${nutribot.rag.similarity-threshold:0.4}")
     private double similarityThreshold;
+
+    /** Sprint 4 (deuda tecnica): fragmentos recuperados por consulta, antes fijo en 6. */
+    @Value("${nutribot.rag.top-k:6}")
+    private int topK;
+
+    /** Sprint 4 (deuda tecnica): minutos sin mensajes tras los cuales se libera una conversacion. */
+    @Value("${nutribot.chat.inactividad-minutos:120}")
+    private long inactividadMinutos;
 
     /**
      * DEF-10: nombre del documento que contiene la lista de precios oficial. En las consultas de
@@ -94,6 +108,13 @@ public class ChatService {
     private final Map<String, String> temaPorConversacion = new ConcurrentHashMap<>();
 
     /**
+     * Sprint 4 (deuda tecnica, riesgo R14): ultimo mensaje de cada conversacion. Antes, el tema y el
+     * historial de cada visitante quedaban en memoria para siempre; ahora se liberan tras un periodo
+     * de inactividad (ver liberarConversacionesInactivas).
+     */
+    private final Map<String, Instant> ultimaActividad = new ConcurrentHashMap<>();
+
+    /**
      * Palabras que se descartan al extraer el SUJETO de la pregunta anterior.
      * Incluye interrogativos, verbos y conectores, pero tambien los sustantivos de INTENCION
      * (dosis, precio, stock...): la intencion debe aportarla la pregunta actual, no la anterior.
@@ -124,6 +145,8 @@ public class ChatService {
         final String convId = (conversationId == null || conversationId.isBlank())
                 ? "default" : conversationId;
 
+        registrarActividad(convId, Instant.now());
+
         // Sprint 4: se mide el tiempo de TODA la atencion (clasificacion + busqueda + modelo)
         long inicio = System.nanoTime();
         Resultado r;
@@ -137,6 +160,43 @@ public class ChatService {
         Long interaccionId = interaccionService.registrar(
                 convId, message, r.answer(), r.camino(), r.accion(), milisDesde(inicio));
         return new ChatResponse(r.answer(), r.accion(), interaccionId);
+    }
+
+    /** Sprint 4: marca la conversacion como activa. */
+    void registrarActividad(String convId, Instant cuando) {
+        ultimaActividad.put(convId, cuando);
+    }
+
+    /** Sprint 4: cada 15 minutos libera las conversaciones sin mensajes en el periodo configurado. */
+    @Scheduled(fixedDelayString = "PT15M", initialDelayString = "PT15M")
+    public void liberarConversacionesInactivas() {
+        int liberadas = liberarInactivas(Instant.now(), Duration.ofMinutes(inactividadMinutos));
+        if (liberadas > 0) {
+            log.info("Memoria liberada de {} conversacion(es) inactiva(s).", liberadas);
+        }
+    }
+
+    /**
+     * Borra el tema vigente y el historial (ChatMemory) de las conversaciones inactivas.
+     * Si el cliente vuelve a escribir despues, la conversacion empieza de cero, como una nueva sesion.
+     * Devuelve cuantas se liberaron.
+     */
+    int liberarInactivas(Instant ahora, Duration inactividad) {
+        Instant limite = ahora.minus(inactividad);
+        int liberadas = 0;
+        for (Map.Entry<String, Instant> e : ultimaActividad.entrySet()) {
+            if (e.getValue().isBefore(limite) && ultimaActividad.remove(e.getKey(), e.getValue())) {
+                temaPorConversacion.remove(e.getKey());
+                nutribotChatMemory.clear(e.getKey());
+                liberadas++;
+            }
+        }
+        return liberadas;
+    }
+
+    /** Sprint 4: cantidad de conversaciones en memoria (para pruebas y monitoreo). */
+    int conversacionesActivas() {
+        return ultimaActividad.size();
     }
 
     /** Milisegundos transcurridos desde un instante tomado con System.nanoTime(). */
@@ -197,7 +257,7 @@ public class ChatService {
         // (b) No hay informacion relevante -> boton directo
         List<Document> relevantes = vectorStore.similaritySearch(SearchRequest.builder()
                 .query(consulta)
-                .topK(6)
+                .topK(topK)
                 .similarityThreshold(similarityThreshold)
                 .build());
         if (relevantes == null || relevantes.isEmpty()) {
@@ -217,7 +277,7 @@ public class ChatService {
             // elegir el menos malo de un conjunto que ya venia equivocado.
             List<Document> deLaLista = vectorStore.similaritySearch(SearchRequest.builder()
                     .query(consulta)
-                    .topK(6)
+                    .topK(topK)
                     .similarityThreshold(similarityThreshold)
                     .filterExpression(new FilterExpressionBuilder().eq("source", priceDocument).build())
                     .build());
@@ -266,7 +326,7 @@ public class ChatService {
      *   "¿Como se almacena el alimento balanceado?" -> "alimento balanceado"
      * Si no queda nada util, devuelve la pregunta original sin signos, para no perder el contexto.
      */
-    private static String extraerSujeto(String pregunta) {
+    static String extraerSujeto(String pregunta) {
         if (pregunta == null || pregunta.isBlank()) {
             return "";
         }
@@ -288,7 +348,7 @@ public class ChatService {
      * cruzarlos. Si el filtro no deja ninguna linea, se devuelve el contexto completo para no
      * dejar al modelo sin informacion.
      */
-    private String contextoDelProducto(List<Document> documentos, String sujeto) {
+    static String contextoDelProducto(List<Document> documentos, String sujeto) {
         String completo = documentos.stream()
                 .map(Document::getText)
                 .filter(t -> t != null && !t.isBlank())
@@ -329,7 +389,7 @@ public class ChatService {
      * Separa el contexto en bloques tematicos. Se corta ante una linea en blanco o al inicio de
      * un nuevo "PRODUCTO:", segun como haya quedado el fragmento despues del troceado.
      */
-    private static List<String> separarEnBloques(String texto) {
+    static List<String> separarEnBloques(String texto) {
         List<String> bloques = java.util.Arrays.stream(texto.split("(?m)\\n\\s*\\n|(?=^PRODUCTO:)"))
                 .map(String::strip)
                 .filter(b -> !b.isBlank())
@@ -338,13 +398,13 @@ public class ChatService {
     }
 
     /** Cuenta cuantas raices del sujeto aparecen en un bloque del contexto. */
-    private static int coincidencias(String bloque, List<String> raices) {
+    static int coincidencias(String bloque, List<String> raices) {
         String n = normalizar(bloque);
         return (int) raices.stream().filter(n::contains).count();
     }
 
     /** Quita la marca de plural para que "gallinas" y "gallina" se reconozcan como lo mismo. */
-    private static String raiz(String palabra) {
+    static String raiz(String palabra) {
         if (palabra.endsWith("es") && palabra.length() > 4) {
             return palabra.substring(0, palabra.length() - 2);
         }
@@ -355,19 +415,19 @@ public class ChatService {
     }
 
     /** Detecta si el cliente pide reformular o explicar mejor la respuesta anterior. */
-    private boolean esReformulacion(String textoNormalizado) {
+    static boolean esReformulacion(String textoNormalizado) {
         return MARCAS_REFORMULACION.stream().anyMatch(textoNormalizado::contains);
     }
 
     /** Detecta si la pregunta depende de lo dicho antes en la conversacion. */
-    private boolean esSeguimiento(String textoNormalizado) {
+    static boolean esSeguimiento(String textoNormalizado) {
         String t = textoNormalizado.trim();
         return t.startsWith("y ") || t.startsWith("¿y ")
                 || MARCAS_SEGUIMIENTO.stream().anyMatch(t::contains);
     }
 
     /** Pasa a minusculas y quita tildes, para que las comparaciones no fallen por acentos. */
-    private static String normalizar(String s) {
+    static String normalizar(String s) {
         return Normalizer.normalize(s.toLowerCase(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "");
     }

@@ -1,0 +1,22 @@
+<div class="fondo">
+  <form class="tarjeta" (ngSubmit)="ingresar()">
+    <div class="logo"><div class="b">B</div><div>BATTILANA<small>NUTRICIÓN</small></div></div>
+    <h1>Panel de NutriBot</h1>
+    <p class="sub">Acceso exclusivo para el personal de Battilana.</p>
+
+    <p *ngIf="aviso" class="aviso">{{ aviso }}</p>
+
+    <label for="usuario">Usuario</label>
+    <input id="usuario" name="usuario" [(ngModel)]="username" autocomplete="username" autofocus />
+
+    <label for="clave">Contraseña</label>
+    <input id="clave" name="clave" type="password" [(ngModel)]="password" autocomplete="current-password" />
+
+    <p *ngIf="error" class="error" role="alert">{{ error }}</p>
+
+    <button type="submit" [disabled]="cargando || !username.trim() || !password">
+      {{ cargando ? "Ingresando..." : "Ingresar" }}
+    </button>
+    <a routerLink="/chat" class="volver">← Ir al chat de clientes</a>
+  </form>
+</div>

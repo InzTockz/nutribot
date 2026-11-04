@@ -1,0 +1,28 @@
+<div class="panel">
+  <aside class="lateral">
+    <div class="logo"><div class="b">B</div><div>BATTILANA<small>NUTRICIÓN</small></div></div>
+    <nav>
+      <a *ngFor="let o of opciones" [routerLink]="o.ruta" routerLinkActive="activa">
+        <i>{{ o.icono }}</i>{{ o.texto }}
+      </a>
+    </nav>
+    <div class="ayuda"><b>Vista del cliente</b><a href="/chat" target="_blank" rel="noopener">Abrir el chat ↗</a></div>
+    <button type="button" class="salir" (click)="salir()">⎋ Cerrar sesión</button>
+  </aside>
+
+  <div class="principal">
+    <header class="superior">
+      <div class="marca">
+        <div class="avatar">🤖</div>
+        <div><b>NutriBot IA</b><span>{{ subtitulo }}</span></div>
+      </div>
+      <div class="usuario">
+        <div class="ini">{{ iniciales }}</div>
+        <div><b>{{ auth.nombre }}</b><span>{{ rolTexto }}</span></div>
+      </div>
+    </header>
+    <main class="contenido">
+      <router-outlet />
+    </main>
+  </div>
+</div>

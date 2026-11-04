@@ -83,6 +83,13 @@ public class InteraccionService {
                 .toList();
     }
 
+    /** HU07/HU08: consultas en las que el bot derivo (BOTON) u ofrecio al asesor (PREGUNTAR). */
+    public List<Interaccion> derivaciones(RangoFechas rango) {
+        return entre(rango).stream()
+                .filter(i -> "BOTON".equals(i.getAccion()) || "PREGUNTAR".equals(i.getAccion()))
+                .toList();
+    }
+
     /**
      * Solo se revisan las respuestas redactadas por el bot. Se excluyen la derivacion pedida por el
      * cliente (texto fijo, no hay nada que evaluar) y los errores tecnicos (no hubo respuesta).

@@ -1,0 +1,44 @@
+/* Vista cliente: ocupa toda la ventana. En celular o dentro del iframe de la web, el chat llena el espacio. */
+.pagina { height: 100vh; display: flex; justify-content: center; align-items: center; background: #eef2ef; padding: 16px; }
+.chat { width: 100%; max-width: 460px; height: 100%; max-height: 760px; background: #fff; border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(20, 40, 28, .15); display: flex; flex-direction: column; overflow: hidden; }
+@media (max-width: 500px) {
+  .pagina { padding: 0; }
+  .chat { max-width: none; max-height: none; border-radius: 0; box-shadow: none; }
+}
+
+.cabecera { background: #1b6b2f; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+.cabecera .avatar { width: 38px; height: 38px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 20px; flex: none; }
+.cabecera b { display: block; font-size: 15px; }
+.cabecera span { font-size: 12px; opacity: .92; }
+.cabecera .punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #7cfc9a; margin-right: 5px; }
+
+.mensajes { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: #fbfcfb; }
+.msg { max-width: 84%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+.msg.bot { align-self: flex-start; background: #eef2ef; color: #1f2a22; border-bottom-left-radius: 4px; }
+.msg.user { align-self: flex-end; background: #2e7d32; color: #fff; border-bottom-right-radius: 4px; }
+.msg.escribiendo { font-style: italic; color: #6b7770; }
+
+.sugerencias { display: flex; flex-wrap: wrap; gap: 6px; }
+.sugerencias button { border: 1px solid #2e7d32; color: #2e7d32; background: #fff; border-radius: 16px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; }
+.sugerencias button:hover { background: #e8f3ea; }
+
+.valoracion { align-self: flex-start; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7770; margin-top: -2px; }
+.valoracion button { background: #fff; border: 1px solid #dde4df; border-radius: 12px; padding: 1px 8px; cursor: pointer; font-size: 13px; }
+.valoracion button:hover { background: #e8f3ea; border-color: #2e7d32; }
+
+.whatsapp { align-self: flex-start; padding: 8px 14px; background: #25d366; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 13.5px; }
+.whatsapp:hover { background: #1da851; }
+
+.formulario { align-self: flex-start; display: flex; flex-direction: column; gap: 6px; max-width: 88%; background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 10px; }
+.formulario p { margin: 0 0 2px; font-size: 13px; color: #795548; }
+.formulario input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13.5px; }
+.formulario button { padding: 8px; background: #2e7d32; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13.5px; }
+.formulario button:disabled { background: #a5d6a7; cursor: not-allowed; }
+
+.redactor { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e3e8e4; }
+.redactor input { flex: 1; border: 1px solid #cfd8d2; border-radius: 20px; padding: 10px 14px; font-size: 14px; outline: none; }
+.redactor input:focus { border-color: #2e7d32; }
+.redactor button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: #2e7d32; color: #fff; font-size: 16px; cursor: pointer; flex: none; }
+.redactor button:disabled { background: #a5d6a7; cursor: not-allowed; }
+.pie { text-align: center; font-size: 11px; color: #98a39c; margin: 0; padding: 0 0 8px; }

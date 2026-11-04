@@ -1,0 +1,43 @@
+<div class="nb-cab">
+  <div><h2>Base de conocimiento</h2><p>Documentos que alimentan las respuestas de NutriBot mediante RAG.</p></div>
+</div>
+
+<div class="nb-kpis">
+  <div class="nb-kpi"><div class="ico">📄</div><div><div class="l">Total de documentos</div><div class="v">{{ documentos.length }}</div><div class="d">indexados</div></div></div>
+  <div class="nb-kpi"><div class="ico">🧩</div><div><div class="l">Fragmentos (vectores)</div><div class="v">{{ totalFragmentos }}</div><div class="d">en Qdrant</div></div></div>
+  <div class="nb-kpi"><div class="ico">📅</div><div><div class="l">Última actualización</div>
+    <div class="v" style="font-size:19px">{{ ultimo ? (ultimo.createdAt | date: "dd/MM/yyyy") : "—" }}</div>
+    <div class="d">{{ ultimo?.fileName }}</div></div></div>
+</div>
+
+<div class="nb-card" style="margin-bottom:14px">
+  <h3>Cargar documento</h3>
+  <div class="nb-filtros" style="margin:0">
+    <input #archivo type="file" accept=".pdf,.doc,.docx,.txt,.csv,.md,.html,.htm" (change)="elegir($event)" />
+    <button class="nb-btn" type="button" (click)="subir(archivo)" [disabled]="!seleccionado || subiendo">
+      {{ subiendo ? "Indexando..." : "⬆ Subir e indexar" }}
+    </button>
+  </div>
+  <p class="nb-sub">PDF, Word, TXT, CSV, MD o HTML · máx. 25 MB. Si subes un archivo con el mismo nombre, se <b>reemplaza</b> sin duplicar sus vectores.</p>
+  <p *ngIf="mensaje" class="nb-ok">{{ mensaje }}</p>
+  <p *ngIf="error" class="nb-error">{{ error }}</p>
+</div>
+
+<div class="nb-card">
+  <h3>Documentos indexados</h3>
+  <table class="nb-tabla" *ngIf="documentos.length > 0">
+    <thead><tr><th>Documento</th><th>Tipo</th><th>Tamaño</th><th>Fragmentos</th><th>Fecha de carga</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+      <tr *ngFor="let d of documentos">
+        <td><b>{{ d.fileName }}</b></td>
+        <td>{{ tipo(d) }}</td>
+        <td class="nb-nowrap">{{ tamano(d.sizeBytes) }}</td>
+        <td>{{ d.chunkCount }}</td>
+        <td class="nb-nowrap">{{ d.createdAt | date: "dd/MM/yyyy HH:mm" }}</td>
+        <td><span class="nb-tag" [class.verde]="d.status === 'INDEXADO'" [class.rojo]="d.status !== 'INDEXADO'">{{ d.status === "INDEXADO" ? "✓ Indexado" : d.status }}</span></td>
+        <td><button class="nb-btn peq peligro" type="button" (click)="eliminar(d)">Eliminar</button></td>
+      </tr>
+    </tbody>
+  </table>
+  <p *ngIf="documentos.length === 0" class="nb-vacio">Aún no hay documentos cargados.</p>
+</div>

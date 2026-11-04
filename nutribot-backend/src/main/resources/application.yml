@@ -2,6 +2,11 @@ spring:
   application:
     name: nutribot-backend
 
+  # ===== Sprint 4: los secretos NO van en el codigo =====
+  # Se leen de variables de entorno o del archivo .env (excluido de Git). Ver .env.example.
+  config:
+    import: "optional:file:.env[.properties],optional:file:../.env[.properties]"
+
   # ===== Subida de archivos (HU06: permite PDFs/Word grandes) =====
   servlet:
     multipart:
@@ -10,9 +15,9 @@ spring:
 
   # ===== Base de datos MySQL (contenedor Docker, puerto 3307 del host) =====
   datasource:
-    url: jdbc:mysql://localhost:3307/nutribot?useSSL=false&allowPublicKeyRetrieval=true
-    username: nutribot
-    password: nutribot123
+    url: ${DB_URL:jdbc:mysql://localhost:3307/nutribot?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:nutribot}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update        # crea/actualiza tablas a partir de las entidades
@@ -54,9 +59,25 @@ logging:
 
 # ===== Configuracion propia de NutriBot =====
 nutribot:
+  # Sprint 4 (deuda tecnica): memoria de conversacion
+  chat:
+    memoria-mensajes: 8          # ventana de historial por conversacion (~4 turnos)
+    inactividad-minutos: 120     # tras este tiempo sin mensajes se libera la memoria de la conversacion
+  # Sprint 4 (enabler de seguridad)
+  security:
+    jwt-secret: ${NUTRIBOT_JWT_SECRET}          # minimo 32 caracteres
+    jwt-horas: ${NUTRIBOT_JWT_HORAS:8}          # duracion de la sesion (una jornada)
+    admin-usuario: ${NUTRIBOT_ADMIN_USER:admin}
+    admin-password: ${NUTRIBOT_ADMIN_PASSWORD:}  # solo se usa para crear el admin si no existe
+    asesor-usuario: ${NUTRIBOT_ASESOR_USER:}
+    asesor-password: ${NUTRIBOT_ASESOR_PASSWORD:}
+  cors:
+    # Origenes que pueden llamar a la API: el panel y, en produccion, la web de Battilana
+    allowed-origins: ${NUTRIBOT_CORS_ORIGINS:http://localhost:4200}
   whatsapp:
     advisor-number: "51932996032"   # numero real de Battilana (51 = Peru + 932996032); verificar si es el del asesor
   rag:
+    top-k: ${NUTRIBOT_RAG_TOP_K:6}   # Sprint 4: fragmentos que se recuperan de Qdrant por consulta
     similarity-threshold: 0.4   # umbral de similitud RAG; si ningun fragmento lo supera, deriva a un asesor (HU08)
     # Documento con la lista de precios oficial. En consultas de precio la busqueda se restringe
     # a el (metadato "source") para que los fragmentos del FAQ o de las fichas tecnicas no

@@ -7,6 +7,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -93,9 +94,9 @@ public class ChatConfig {
      * preguntas de seguimiento sin saturar el contexto de 4096 tokens.
      */
     @Bean
-    public ChatMemory nutribotChatMemory() {
+    public ChatMemory nutribotChatMemory(@Value("${nutribot.chat.memoria-mensajes:8}") int memoriaMensajes) {
         return MessageWindowChatMemory.builder()
-                .maxMessages(8)
+                .maxMessages(memoriaMensajes)   // Sprint 4: configurable en application.yml
                 .build();
     }
 
@@ -103,11 +104,12 @@ public class ChatConfig {
     @Bean
     public ChatClient nutribotChatClient(ChatClient.Builder builder,
                                          VectorStore vectorStore,
-                                         ChatMemory nutribotChatMemory) {
+                                         ChatMemory nutribotChatMemory,
+                                         @Value("${nutribot.rag.top-k:6}") int topK) {
 
         QuestionAnswerAdvisor ragAdvisor = QuestionAnswerAdvisor.builder(vectorStore)
                 .searchRequest(SearchRequest.builder()
-                        .topK(6)   // recupera los 6 fragmentos mas relevantes de Qdrant
+                        .topK(topK)   // Sprint 4: configurable (nutribot.rag.top-k, por defecto 6)
                         .build())
                 .build();
 

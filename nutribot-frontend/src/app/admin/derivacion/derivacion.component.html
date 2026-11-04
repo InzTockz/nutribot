@@ -1,0 +1,63 @@
+<div class="nb-cab">
+  <div><h2>Clasificación y derivación automática</h2><p>Cómo decidió NutriBot derivar u ofrecer un asesor humano en cada consulta.</p></div>
+  <div class="nb-acciones">
+    <div class="nb-filtros" style="margin:0">
+      <label>Desde <input type="date" [(ngModel)]="desde" /></label>
+      <label>Hasta <input type="date" [(ngModel)]="hasta" /></label>
+      <button class="nb-btn" type="button" (click)="cargar()">Actualizar</button>
+    </div>
+  </div>
+</div>
+<p *ngIf="error" class="nb-error">{{ error }}</p>
+
+<ng-container *ngIf="sel as i">
+  <div class="nb-grid3" style="margin-bottom:14px">
+    <div class="nb-card">
+      <h3><span class="nb-tag verde">1</span> Consulta del cliente</h3>
+      <p style="margin:0;background:#2e7d32;color:#fff;border-radius:10px;padding:9px 12px;font-size:14px">{{ i.pregunta }}</p>
+      <p class="nb-sub">{{ i.createdAt | date: "dd/MM/yyyy HH:mm" }}</p>
+    </div>
+    <div class="nb-card">
+      <h3><span class="nb-tag verde">2</span> Clasificación</h3>
+      <p style="margin:0 0 6px"><span class="nb-tag {{ colorCamino(i.camino) }}">{{ i.camino }}</span> <b>{{ clasificacion(i).titulo }}</b></p>
+      <p class="nb-sub" style="margin:0">{{ clasificacion(i).detalle }}</p>
+    </div>
+    <div class="nb-card">
+      <h3><span class="nb-tag verde">3</span> Regla aplicada</h3>
+      <p style="margin:0 0 6px"><b>{{ regla(i).titulo }}</b></p>
+      <p class="nb-sub" style="margin:0">{{ regla(i).detalle }}</p>
+    </div>
+    <div class="nb-card">
+      <h3><span class="nb-tag verde">4</span> Respuesta del bot</h3>
+      <p style="margin:0;background:#eef2ef;border-radius:10px;padding:9px 12px;font-size:13.5px;white-space:pre-wrap">{{ i.respuesta || "—" }}</p>
+    </div>
+    <div class="nb-card">
+      <h3><span class="nb-tag verde">5</span> Estado</h3>
+      <table class="nb-tabla">
+        <tr><td>Acción</td><td><span class="nb-tag" [class.ambar]="i.accion === 'BOTON'" [class.verde]="i.accion === 'PREGUNTAR'">
+          {{ i.accion === "BOTON" ? "Derivó al asesor" : "Ofreció asesor" }}</span></td></tr>
+        <tr><td>Tiempo</td><td>{{ i.tiempoMs !== null ? ((i.tiempoMs / 1000) | number: "1.2-2") + " s" : "—" }}</td></tr>
+        <tr><td>Valoración</td><td>{{ i.valoracion === "UTIL" ? "👍 útil" : i.valoracion === "NO_UTIL" ? "👎 no útil" : "—" }}</td></tr>
+        <tr><td>Revisión</td><td>{{ i.revision === "CORRECTA" ? "✔ correcta" : i.revision === "INCORRECTA" ? "✘ incorrecta" : "sin revisar" }}</td></tr>
+      </table>
+    </div>
+  </div>
+</ng-container>
+
+<div class="nb-card">
+  <h3>Derivaciones del periodo <span class="nb-tag gris">{{ lista.length }}</span></h3>
+  <table class="nb-tabla" *ngIf="lista.length > 0">
+    <thead><tr><th>Fecha</th><th>Consulta</th><th>Tipo</th><th>Regla aplicada</th><th>Acción</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let i of lista" [class.sel]="i === sel" (click)="sel = i" style="cursor:pointer">
+        <td class="nb-nowrap">{{ i.createdAt | date: "dd/MM HH:mm" }}</td>
+        <td>{{ i.pregunta }}</td>
+        <td><span class="nb-tag {{ colorCamino(i.camino) }}">{{ i.camino }}</span></td>
+        <td>{{ regla(i).titulo }}</td>
+        <td><span class="nb-tag" [class.ambar]="i.accion === 'BOTON'" [class.verde]="i.accion === 'PREGUNTAR'">{{ i.accion }}</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <p *ngIf="lista.length === 0" class="nb-vacio">No hubo derivaciones en este periodo.</p>
+  <p class="nb-sub">Haz clic en una fila para ver su detalle arriba.</p>
+</div>

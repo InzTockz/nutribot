@@ -1,0 +1,54 @@
+<div class="nb-cab">
+  <div><h2>Consultas pendientes</h2><p>Consultas registradas cuando no había un asesor disponible. Devuélvelas una a una.</p></div>
+  <div class="nb-acciones"><button class="nb-btn sec" type="button" (click)="exportar()">⬇ Exportar a Excel</button></div>
+</div>
+
+<div class="nb-kpis">
+  <div class="nb-kpi ambar"><div class="ico">⏳</div><div><div class="l">Pendientes</div><div class="v">{{ totalPendientes }}</div><div class="d">consultas</div></div></div>
+  <div class="nb-kpi"><div class="ico">✔</div><div><div class="l">Atendidas hoy</div><div class="v">{{ atendidasHoy }}</div><div class="d">consultas</div></div></div>
+  <div class="nb-kpi azul"><div class="ico">⏱</div><div><div class="l">Tiempo promedio de atención</div>
+    <div class="v" style="font-size:20px">{{ tiempoAtencion }}</div><div class="d">registro → atendida (últimos 7 días)</div></div></div>
+</div>
+
+<div class="nb-card">
+  <div class="nb-filtros">
+    <label>Estado
+      <select [(ngModel)]="filtroEstado">
+        <option value="TODOS">Todos</option><option value="PENDIENTE">Pendiente</option><option value="ATENDIDA">Atendida</option>
+      </select>
+    </label>
+    <label>Fecha de registro <input type="date" [(ngModel)]="filtroFecha" /></label>
+    <label class="crece">Buscar <input [(ngModel)]="busqueda" placeholder="Cliente, número o consulta..." /></label>
+    <button class="nb-btn sec" type="button" (click)="limpiar()">Limpiar filtros</button>
+    <button class="nb-btn sec" type="button" (click)="cargar()">Actualizar</button>
+  </div>
+  <p *ngIf="mensaje" class="nb-ok">{{ mensaje }}</p>
+  <p *ngIf="error" class="nb-error">{{ error }}</p>
+
+  <table class="nb-tabla" *ngIf="filtradas.length > 0">
+    <thead><tr><th>#</th><th>Fecha / hora</th><th>Cliente</th><th>Número</th><th>Consulta</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let p of filtradas">
+        <td>{{ p.id }}</td>
+        <td class="nb-nowrap">{{ p.createdAt | date: "dd/MM/yyyy HH:mm" }}</td>
+        <td><b>{{ p.nombre }}</b></td>
+        <td class="nb-nowrap">{{ p.telefono }}</td>
+        <td>{{ p.consulta }}</td>
+        <td>
+          <span class="nb-tag" [class.ambar]="p.estado === 'PENDIENTE'" [class.verde]="p.estado === 'ATENDIDA'">
+            {{ p.estado === "ATENDIDA" ? "Atendida" : "Pendiente" }}</span>
+          <div *ngIf="p.atendidaAt" class="nb-sub">{{ p.atendidaAt | date: "dd/MM HH:mm" }}</div>
+        </td>
+        <td class="nb-nowrap">
+          <a class="nb-ico" [href]="whatsapp(p)" target="_blank" rel="noopener" title="Escribir al cliente por WhatsApp"
+             style="display:inline-grid;place-items:center;text-decoration:none">🟢</a>
+          <button class="nb-btn peq" [class.sec]="p.estado === 'ATENDIDA'" type="button" (click)="cambiarEstado(p)">
+            {{ p.estado === "ATENDIDA" ? "Reabrir" : "Marcar atendida" }}
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p *ngIf="filtradas.length === 0" class="nb-vacio">No hay consultas con esos filtros.</p>
+  <p class="nb-sub">La exportación a Excel aplica los filtros de estado y fecha.</p>
+</div>

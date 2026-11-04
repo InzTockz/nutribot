@@ -1,0 +1,48 @@
+.panel { padding: 0; }   /* el marco del panel ya da el margen */
+.panel h3 { margin: 24px 0 8px; color: #333; font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+.hint { color: #666; font-size: 0.9rem; }
+.vacio { color: #999; font-size: 0.9rem; text-align: center; }
+.mensaje { color: #c62828; font-size: 0.9rem; }
+
+/* Filtro por fecha */
+.filtros { display: flex; gap: 14px; align-items: center; margin: 16px 0; flex-wrap: wrap; font-size: 0.9rem; color: #555; }
+.filtros input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; margin-left: 6px; }
+.filtros button { padding: 7px 14px; background: #2e7d32; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+.filtros button:disabled { background: #a5d6a7; cursor: not-allowed; }
+.filtros button.secundario { background: #fff; color: #2e7d32; border: 1px solid #2e7d32; }
+
+/* Tarjetas de indicadores */
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.kpi { border: 1px solid #e0e0e0; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; background: #fafafa; }
+.kpi.alerta { border-color: #ef9a9a; background: #ffebee; }
+.kpi-label { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+.kpi-valor { font-size: 1.6rem; font-weight: 600; color: #1b5e20; }
+.kpi-det { font-size: 0.8rem; color: #888; }
+
+/* Grafico de tendencia */
+.grafico-caja { margin-top: 20px; border: 1px solid #e0e0e0; border-radius: 10px; padding: 12px; }
+.grafico-cabecera { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.grafico-cabecera h3 { margin: 0; }
+.selector { display: flex; gap: 4px; }
+.selector button { padding: 5px 10px; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #555; }
+.selector button.activo { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+.grafico { width: 100%; height: auto; display: block; margin-top: 8px; }
+.guia { stroke: #eee; stroke-width: 1; }
+.eje { fill: #888; font-size: 11px; }
+.linea { fill: none; stroke: #2e7d32; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.punto { fill: #fff; stroke: #2e7d32; stroke-width: 2; }
+
+/* Consultas por tipo */
+.caminos { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.85rem; color: #555; }
+.chip { background: #e8f5e9; color: #1b5e20; border-radius: 12px; padding: 3px 10px; }
+
+/* Revision (precision) */
+.badge { background: #fff3e0; color: #e65100; border-radius: 10px; padding: 2px 8px; font-size: 0.8rem; font-weight: 500; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tabla th, .tabla td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+.tabla th { color: #666; font-weight: 600; }
+.tabla .respuesta { color: #444; max-width: 320px; }
+.nowrap { white-space: nowrap; }
+.tabla button { border: none; border-radius: 5px; padding: 5px 8px; cursor: pointer; font-size: 0.8rem; color: #fff; margin: 0 2px 4px 0; }
+.tabla button.ok { background: #2e7d32; }
+.tabla button.mal { background: #c62828; }
