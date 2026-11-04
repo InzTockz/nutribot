@@ -28,6 +28,12 @@
         <span class="kpi-valor">{{ m.tiempoPromedioSeg !== null ? (m.tiempoPromedioSeg | number: "1.2-2") + " s" : "—" }}</span>
         <span class="kpi-det">meta: menos de 5 s</span>
       </div>
+      <!-- DEF-14: el promedio se distorsiona con un solo arranque en frio; este indicador no -->
+      <div class="kpi" [class.alerta]="m.porcentajeBajoMeta !== null && m.porcentajeBajoMeta < 95">
+        <span class="kpi-label">Bajo 5 s</span>
+        <span class="kpi-valor">{{ pct(m.porcentajeBajoMeta) }}</span>
+        <span class="kpi-det">{{ m.bajoMeta }} de {{ m.consultasMedidas }} · meta: 95 %</span>
+      </div>
       <div class="kpi">
         <span class="kpi-label">Derivaciones</span>
         <span class="kpi-valor">{{ pct(m.porcentajeDerivacion) }}</span>

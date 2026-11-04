@@ -16,7 +16,7 @@
   <div class="nb-kpi" [class.alerta]="quincena.tiempoPromedioSeg !== null && quincena.tiempoPromedioSeg >= 5"><div class="ico">⏱</div><div>
     <div class="l">Tiempo de respuesta (14 días)</div>
     <div class="v">{{ quincena.tiempoPromedioSeg !== null ? (quincena.tiempoPromedioSeg | number: "1.2-2") + " s" : "—" }}</div>
-    <div class="d">meta: menos de 5 s</div></div></div>
+    <div class="d">meta: menos de 5 s · {{ pct(quincena.porcentajeBajoMeta) }} bajo 5 s ({{ quincena.bajoMeta }} de {{ quincena.consultasMedidas }})</div></div></div>
   <div class="nb-kpi azul"><div class="ico">🙂</div><div>
     <div class="l">Satisfacción (14 días)</div><div class="v">{{ pct(quincena.satisfaccion) }}</div>
     <div class="d">{{ quincena.utiles }} 👍 de {{ quincena.valoradas }} valoraciones</div></div></div>

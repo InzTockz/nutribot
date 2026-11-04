@@ -35,10 +35,12 @@ spring:
         options:
           model: mistral                 # LLM local
           temperature: 0.3               # bajo = respuestas mas fieles (menos "inventos")
+          keep-alive: ${NUTRIBOT_OLLAMA_KEEP_ALIVE:8h}   # DEF-14: Mistral sigue cargado una jornada (por defecto Ollama lo descarga a los 5 min)
           num-ctx: 4096                  # contexto moderado, ideal para 8 GB de VRAM
       embedding:
         options:
           model: nomic-embed-text        # modelo de embeddings (768 dimensiones)
+          keep-alive: ${NUTRIBOT_OLLAMA_KEEP_ALIVE:8h}   # DEF-14
           num-gpu: 0                     # embeddings en CPU (~15 ms): evita el crash del runner CUDA y libera VRAM para Mistral
     vectorstore:
       qdrant:
@@ -59,6 +61,9 @@ logging:
 
 # ===== Configuracion propia de NutriBot =====
 nutribot:
+  # DEF-14: consulta interna al arrancar para que el primer cliente no espere la carga del modelo
+  ollama:
+    precalentar: true
   # Sprint 4 (deuda tecnica): memoria de conversacion
   chat:
     memoria-mensajes: 8          # ventana de historial por conversacion (~4 turnos)
@@ -76,6 +81,11 @@ nutribot:
     allowed-origins: ${NUTRIBOT_CORS_ORIGINS:http://localhost:4200}
   whatsapp:
     advisor-number: "51932996032"   # numero real de Battilana (51 = Peru + 932996032); verificar si es el del asesor
+  # DEF-15: horario de atencion de los asesores (lo decide el backend, en hora de Peru; domingo cerrado)
+  asesor:
+    zona-horaria: America/Lima
+    lunes-a-viernes: ${NUTRIBOT_HORARIO_SEMANA:08:00-18:00}
+    sabado: ${NUTRIBOT_HORARIO_SABADO:08:00-13:00}
   rag:
     top-k: ${NUTRIBOT_RAG_TOP_K:6}   # Sprint 4: fragmentos que se recuperan de Qdrant por consulta
     similarity-threshold: 0.4   # umbral de similitud RAG; si ningun fragmento lo supera, deriva a un asesor (HU08)

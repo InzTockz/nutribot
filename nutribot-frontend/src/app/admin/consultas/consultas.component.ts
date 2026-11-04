@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ApiAdminService } from '../../core/api-admin.service';
 import { PendingQuery } from '../../core/modelos';
 import { descargarArchivo, fechaIso } from '../../shared/descargar';
+import { normalizarCelular } from '../../shared/telefono';
+import { formatearDuracion } from '../../shared/formato';
 
 /**
  * Sprint 4 — Consultas pendientes (ADMIN y ASESOR). HU10 y HU11 en su propia pantalla,
@@ -65,7 +67,7 @@ export class ConsultasComponent implements OnInit {
       return '—';
     }
     const prom = Math.round(minutos.reduce((s, m) => s + m, 0) / minutos.length);
-    return prom >= 60 ? `${Math.floor(prom / 60)} h ${prom % 60} min` : `${prom} min`;
+    return formatearDuracion(prom);   // DEF-12: "28 d 1 h" en lugar de "673 h 40 min"
   }
 
   limpiar(): void {
@@ -94,13 +96,17 @@ export class ConsultasComponent implements OnInit {
     });
   }
 
-  /** Enlace de WhatsApp al numero del cliente, con un saludo y su consulta ya escritos */
-  whatsapp(p: PendingQuery): string {
-    let numero = (p.telefono ?? '').replace(/\D/g, '');
-    if (numero.length === 9) {
-      numero = '51' + numero;   // celular peruano sin codigo de pais
+  /**
+   * Enlace de WhatsApp al numero del cliente, con un saludo y su consulta ya escritos.
+   * DEF-11: si el numero guardado no es un celular peruano valido (registros antiguos), devuelve null
+   * y la pantalla desactiva el boton con el aviso "Número no válido".
+   */
+  whatsapp(p: PendingQuery): string | null {
+    const celular = normalizarCelular(p.telefono);
+    if (!celular) {
+      return null;
     }
     const texto = `Hola ${p.nombre}, te escribimos de Battilana Nutrición por tu consulta: "${p.consulta}".`;
-    return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+    return `https://wa.me/51${celular}?text=${encodeURIComponent(texto)}`;
   }
 }

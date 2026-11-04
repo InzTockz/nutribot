@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
  *
  * Definiciones (las mismas que se reportan en la tesis):
  *  - Tiempo promedio = promedio de tiempo_ms de las interacciones sin error, en segundos.
+ *  - Bajo la meta    = interacciones sin error respondidas en menos de 5 s / interacciones sin error medidas.
+ *                      Es el indicador del escenario de calidad de Rendimiento (< 5 s en el 95 % de los casos):
+ *                      a diferencia del promedio, una sola consulta lenta no lo deforma (DEF-14).
  *  - Derivacion      = interaccion con accion BOTON (el bot ofrecio directamente al asesor).
  *  - Fiabilidad      = interacciones sin error / total.
  *  - Satisfaccion    = valoradas UTIL / valoradas.
@@ -28,6 +31,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class MetricasService {
+
+    /** Meta de tiempo de respuesta del escenario de calidad de Rendimiento (Cap. 3). */
+    static final long META_MS = 5_000;
 
     private final InteraccionService interacciones;
     private final ExcelExporter excel;
@@ -45,6 +51,8 @@ public class MetricasService {
         long revisadas = contar(lista, i -> i.getRevision() != null);
         long correctas = contar(lista, i -> i.getRevision() == Revision.CORRECTA);
         long pendientesRevision = contar(lista, i -> i.getRevision() == null && InteraccionService.esRevisable(i));
+        long medidas = contar(lista, MetricasService::esMedida);
+        long bajoMeta = contar(lista, i -> esMedida(i) && i.getTiempoMs() < META_MS);
 
         Map<String, Long> porCamino = lista.stream()
                 .collect(Collectors.groupingBy(i -> i.getCamino().name(), TreeMap::new, Collectors.counting()));
@@ -63,6 +71,7 @@ public class MetricasService {
         return new MetricasResponse(
                 rango.desde(), rango.hasta(),
                 total, tiempoPromedioSeg(lista),
+                medidas, bajoMeta, porcentaje(bajoMeta, medidas),
                 derivaciones, porcentaje(derivaciones, total),
                 errores, porcentaje(total - errores, total),
                 porCamino,
@@ -81,6 +90,8 @@ public class MetricasService {
                 Arrays.<Object>asList("Periodo", m.desde() + " a " + m.hasta(), ""),
                 Arrays.<Object>asList("Consultas", m.totalConsultas(), ""),
                 Arrays.<Object>asList("Tiempo promedio de respuesta (s)", m.tiempoPromedioSeg(), "Meta: menos de 5 s"),
+                Arrays.<Object>asList("Consultas respondidas en menos de 5 s (%)", m.porcentajeBajoMeta(),
+                        m.bajoMeta() + " de " + m.consultasMedidas() + " · meta: 95 %"),
                 Arrays.<Object>asList("Derivaciones (%)", m.porcentajeDerivacion(), m.derivaciones() + " de " + m.totalConsultas()),
                 Arrays.<Object>asList("Fiabilidad (%)", m.fiabilidad(), m.errores() + " con error"),
                 Arrays.<Object>asList("Satisfaccion (%)", m.satisfaccion(), m.utiles() + " utiles de " + m.valoradas() + " valoradas"),
@@ -107,6 +118,11 @@ public class MetricasService {
                                 "Tiempo (s)", "Valoracion", "Revision"),
                         detalle)
                 .bytes();
+    }
+
+    /** Interaccion sin error tecnico y con tiempo registrado. */
+    private static boolean esMedida(Interaccion i) {
+        return i.getCamino() != CaminoConsulta.ERROR && i.getTiempoMs() != null;
     }
 
     private static boolean esDerivacion(Interaccion i) {

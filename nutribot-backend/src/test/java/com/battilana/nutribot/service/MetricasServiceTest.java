@@ -54,6 +54,27 @@ class MetricasServiceTest {
         assertThat(m.precision()).isEqualTo(100.0);               // 1 CORRECTA / 1 revisada
         assertThat(m.pendientesRevision()).isEqualTo(1);          // PRECIO sin revisar (ASESOR y ERROR no se revisan)
         assertThat(m.porCamino()).containsEntry("GENERAL", 1L).containsEntry("ERROR", 1L);
+        assertThat(m.consultasMedidas()).isEqualTo(3);            // DEF-14: las 3 sin error tienen tiempo
+        assertThat(m.bajoMeta()).isEqualTo(3);
+        assertThat(m.porcentajeBajoMeta()).isEqualTo(100.0);
+    }
+
+    @Test
+    void unArranqueEnFrioSubeElPromedioPeroElPorcentajeBajo5sLoDelata() {
+        // DEF-14: caso real del recorrido — 12 consultas rapidas y 1 de 33.5 s (primera tras reiniciar)
+        List<Interaccion> lista = new java.util.ArrayList<>();
+        for (int k = 0; k < 12; k++) {
+            lista.add(i(CaminoConsulta.GENERAL, "NINGUNA", 2500L, null, null));
+        }
+        lista.add(i(CaminoConsulta.GENERAL, "NINGUNA", 33_563L, null, null));
+        when(interacciones.entre(rango)).thenReturn(lista);
+
+        MetricasResponse m = service.calcular(rango);
+
+        assertThat(m.tiempoPromedioSeg()).isGreaterThan(4.5);     // el promedio casi rompe la meta por un solo caso
+        assertThat(m.consultasMedidas()).isEqualTo(13);
+        assertThat(m.bajoMeta()).isEqualTo(12);
+        assertThat(m.porcentajeBajoMeta()).isEqualTo(92.31);      // 12 / 13 — muestra que es un caso aislado
     }
 
     @Test
@@ -78,6 +99,7 @@ class MetricasServiceTest {
         assertThat(m.tiempoPromedioSeg()).isNull();
         assertThat(m.satisfaccion()).isNull();
         assertThat(m.precision()).isNull();
+        assertThat(m.porcentajeBajoMeta()).isNull();
     }
 
     @Test

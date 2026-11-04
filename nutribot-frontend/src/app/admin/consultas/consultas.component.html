@@ -32,7 +32,8 @@
         <td>{{ p.id }}</td>
         <td class="nb-nowrap">{{ p.createdAt | date: "dd/MM/yyyy HH:mm" }}</td>
         <td><b>{{ p.nombre }}</b></td>
-        <td class="nb-nowrap">{{ p.telefono }}</td>
+        <td class="nb-nowrap">{{ p.telefono }}
+          <div *ngIf="!whatsapp(p)" class="nb-sub" style="color:#c62828">Número no válido</div></td>
         <td>{{ p.consulta }}</td>
         <td>
           <span class="nb-tag" [class.ambar]="p.estado === 'PENDIENTE'" [class.verde]="p.estado === 'ATENDIDA'">
@@ -40,8 +41,14 @@
           <div *ngIf="p.atendidaAt" class="nb-sub">{{ p.atendidaAt | date: "dd/MM HH:mm" }}</div>
         </td>
         <td class="nb-nowrap">
-          <a class="nb-ico" [href]="whatsapp(p)" target="_blank" rel="noopener" title="Escribir al cliente por WhatsApp"
-             style="display:inline-grid;place-items:center;text-decoration:none">🟢</a>
+          <ng-container *ngIf="whatsapp(p) as enlace; else sinWhatsapp">
+            <a class="nb-ico" [href]="enlace" target="_blank" rel="noopener" title="Escribir al cliente por WhatsApp"
+               style="display:inline-grid;place-items:center;text-decoration:none">🟢</a>
+          </ng-container>
+          <ng-template #sinWhatsapp>
+            <button class="nb-ico" type="button" disabled title="Número no válido: no es un celular peruano"
+                    style="opacity:.45;cursor:not-allowed">⚪</button>
+          </ng-template>
           <button class="nb-btn peq" [class.sec]="p.estado === 'ATENDIDA'" type="button" (click)="cambiarEstado(p)">
             {{ p.estado === "ATENDIDA" ? "Reabrir" : "Marcar atendida" }}
           </button>

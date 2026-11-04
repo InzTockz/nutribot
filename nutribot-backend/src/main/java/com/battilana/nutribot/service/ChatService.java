@@ -43,6 +43,7 @@ public class ChatService {
     private final VectorStore vectorStore;
     private final InteraccionService interaccionService;
     private final ChatMemory nutribotChatMemory;   // Sprint 4: para liberar las conversaciones inactivas
+    private final HorarioAtencion horarioAtencion; // DEF-15: el backend decide si hay asesor
 
     /** Resultado interno de procesar una consulta: la respuesta, la accion y el camino seguido. */
     private record Resultado(String answer, String accion, CaminoConsulta camino) {
@@ -149,9 +150,10 @@ public class ChatService {
 
         // Sprint 4: se mide el tiempo de TODA la atencion (clasificacion + busqueda + modelo)
         long inicio = System.nanoTime();
+        boolean asesorDisponible = horarioAtencion.disponible();   // DEF-15
         Resultado r;
         try {
-            r = procesar(message, convId, previousQuestion);
+            r = procesar(message, convId, previousQuestion, asesorDisponible);
         } catch (RuntimeException e) {
             // Tambien se registran los fallos (p. ej. Ollama apagado): alimentan la metrica de fiabilidad
             interaccionService.registrar(convId, message, null, CaminoConsulta.ERROR, "ERROR", milisDesde(inicio));
@@ -159,7 +161,16 @@ public class ChatService {
         }
         Long interaccionId = interaccionService.registrar(
                 convId, message, r.answer(), r.camino(), r.accion(), milisDesde(inicio));
-        return new ChatResponse(r.answer(), r.accion(), interaccionId);
+        return new ChatResponse(r.answer(), r.accion(), interaccionId, asesorDisponible);
+    }
+
+    /** DEF-15: respuesta cuando el cliente pide un asesor, segun el horario de atencion. */
+    String mensajeAsesor(boolean asesorDisponible) {
+        if (asesorDisponible) {
+            return "Con gusto, puedes hablar con un asesor con el botón de abajo.";
+        }
+        return "Con gusto te comunico con un asesor, pero en este momento estamos fuera del horario de atención ("
+                + horarioAtencion.descripcion() + "). Déjanos tus datos en el formulario y te contactaremos.";
     }
 
     /** Sprint 4: marca la conversacion como activa. */
@@ -208,12 +219,13 @@ public class ChatService {
      * Logica de atencion (sin cambios funcionales respecto del Sprint 3): decide el camino,
      * consulta la base de conocimiento y arma la respuesta.
      */
-    private Resultado procesar(String message, String convId, String previousQuestion) {
+    private Resultado procesar(String message, String convId, String previousQuestion, boolean asesorDisponible) {
         String texto = normalizar(message);
 
-        // (a) El cliente pide explicitamente un asesor -> boton directo
+        // (a) El cliente pide explicitamente un asesor -> boton directo.
+        // DEF-15: el texto depende de si hay asesor; fuera de horario se piden los datos (HU09).
         if (PIDE_ASESOR.stream().anyMatch(texto::contains)) {
-            return new Resultado("Con gusto, puedes hablar con un asesor con el boton de abajo.", "BOTON", CaminoConsulta.ASESOR);
+            return new Resultado(mensajeAsesor(asesorDisponible), "BOTON", CaminoConsulta.ASESOR);
         }
 
         // HU05 (b): reformulacion -> se responde SOLO con el historial, sin recuperar nada.

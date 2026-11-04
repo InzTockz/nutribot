@@ -15,6 +15,9 @@ public record MetricasResponse(
         LocalDate hasta,
         long totalConsultas,
         Double tiempoPromedioSeg,
+        long consultasMedidas,          // DEF-14: consultas sin error con tiempo registrado
+        long bajoMeta,                  // DEF-14: de ellas, las respondidas en menos de 5 s
+        Double porcentajeBajoMeta,      // DEF-14: escenario de calidad "< 5 s en el 95 % de los casos"
         long derivaciones,
         Double porcentajeDerivacion,
         long errores,

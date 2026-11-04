@@ -38,10 +38,13 @@
 
         <!-- HU09: formulario cuando no hay asesor disponible -->
         <div *ngIf="m.pedirDatos" class="formulario">
-          <p>No hay asesores disponibles ahora. Déjanos tus datos y te contactaremos:</p>
+          <p>Déjanos tus datos y un asesor te contactará:</p>
           <input [(ngModel)]="bitacoraNombre" [ngModelOptions]="{ standalone: true }" placeholder="Tu nombre" />
-          <input [(ngModel)]="bitacoraTelefono" [ngModelOptions]="{ standalone: true }" placeholder="Tu número de contacto" />
-          <button type="button" (click)="enviarBitacora()" [disabled]="!bitacoraNombre.trim() || !bitacoraTelefono.trim()">
+          <input [(ngModel)]="bitacoraTelefono" [ngModelOptions]="{ standalone: true }" placeholder="Tu celular (ej. 987 654 321)"
+                 type="tel" inputmode="numeric" autocomplete="tel" maxlength="16"
+                 [class.invalido]="bitacoraTelefono.trim() && !celularValido" />
+          <small *ngIf="bitacoraTelefono.trim() && !celularValido" class="aviso">Ingresa un celular de 9 dígitos que empiece con 9.</small>
+          <button type="button" (click)="enviarBitacora()" [disabled]="!bitacoraValida || enviandoBitacora">
             Enviar mis datos
           </button>
         </div>

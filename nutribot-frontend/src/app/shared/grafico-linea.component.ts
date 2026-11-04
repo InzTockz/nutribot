@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, NgZone, OnChanges, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface PuntoSerie {
@@ -11,6 +11,10 @@ interface Punto { x: number; y: number; fecha: string; valor: number; }
 /**
  * Sprint 4: grafico de tendencia reutilizable (Dashboard y Metricas), dibujado con SVG sin librerias.
  * Uso: <nb-grafico-linea [datos]="serie" [decimales]="1" />
+ *
+ * DEF-13: antes el dibujo tenia un ancho fijo de 640 y se estiraba proporcionalmente,
+ * asi que en pantallas anchas crecia tambien en alto (grafico gigante). Ahora se mide el ancho real
+ * del contenedor (ResizeObserver) y se vuelve a dibujar con ese ancho; el alto queda fijo en 240 px.
  */
 @Component({
   selector: 'nb-grafico-linea',
@@ -27,7 +31,8 @@ interface Punto { x: number; y: number; fecha: string; valor: number; }
       </circle>
     </svg>`,
   styles: [`
-    svg { width: 100%; height: auto; display: block; }
+    :host { display: block; width: 100%; }
+    svg { width: 100%; height: 240px; display: block; }
     .guia { stroke: #eef1ef; stroke-width: 1; }
     .eje { fill: #8a958e; font-size: 11px; }
     .area { fill: #2e7d32; opacity: .08; }
@@ -35,14 +40,18 @@ interface Punto { x: number; y: number; fecha: string; valor: number; }
     .punto { fill: #fff; stroke: #2e7d32; stroke-width: 2; }
   `]
 })
-export class GraficoLineaComponent implements OnChanges {
+export class GraficoLineaComponent implements OnChanges, AfterViewInit, OnDestroy {
 
   @Input() datos: PuntoSerie[] = [];
   @Input() decimales = 0;
   @Input() etiqueta = 'Gráfico de tendencia';
 
-  readonly ancho = 640;
-  readonly alto = 220;
+  ancho = 640;              // se reemplaza por el ancho real del contenedor
+  readonly alto = 240;
+  private static readonly ANCHO_MINIMO = 320;
+  private observador?: ResizeObserver;
+
+  constructor(private host: ElementRef<HTMLElement>, private zone: NgZone) {}
   readonly m = { izq: 46, der: 14, sup: 14, inf: 30 };
 
   puntos: Punto[] = [];
@@ -51,7 +60,31 @@ export class GraficoLineaComponent implements OnChanges {
   ticksY: { y: number; texto: string }[] = [];
   etiquetasX: { x: number; texto: string }[] = [];
 
+  ngAfterViewInit(): void {
+    if (typeof ResizeObserver === 'undefined') {
+      return;   // navegador antiguo o pruebas: se queda con 640
+    }
+    this.observador = new ResizeObserver((entradas) => {
+      const medido = Math.max(GraficoLineaComponent.ANCHO_MINIMO, Math.round(entradas[0]?.contentRect.width ?? 0));
+      if (Math.abs(medido - this.ancho) >= 1) {      // solo si de verdad cambio el ancho
+        this.zone.run(() => {
+          this.ancho = medido;
+          this.dibujar();
+        });
+      }
+    });
+    this.observador.observe(this.host.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.observador?.disconnect();
+  }
+
   ngOnChanges(): void {
+    this.dibujar();
+  }
+
+  private dibujar(): void {
     this.puntos = [];
     this.tramos = [];
     this.area = '';

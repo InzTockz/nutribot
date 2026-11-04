@@ -7,6 +7,7 @@ export interface ChatResponse {
   answer: string;
   accion: string;
   interaccionId: number | null;   // Sprint 4: para valorar la respuesta (HU13)
+  asesorDisponible?: boolean;     // DEF-15: lo decide el backend segun el horario de atencion
 }
 
 /** Sprint 4: sesion del personal (lo que devuelve POST /api/auth/login) */
@@ -55,6 +56,9 @@ export interface Metricas {
   hasta: string;
   totalConsultas: number;
   tiempoPromedioSeg: number | null;
+  consultasMedidas: number;            // DEF-14: consultas con tiempo medido (sin error tecnico)
+  bajoMeta: number;                    // DEF-14: de esas, cuantas respondieron en menos de 5 s
+  porcentajeBajoMeta: number | null;   // DEF-14: bajoMeta / consultasMedidas * 100 (meta: 95 %)
   derivaciones: number;
   porcentajeDerivacion: number | null;
   errores: number;

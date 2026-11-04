@@ -28,17 +28,51 @@ public class PendingQueryService {
     public static final String PENDIENTE = "PENDIENTE";
     public static final String ATENDIDA = "ATENDIDA";
 
+    /** DEF-11: longitud maxima de la consulta (columna pending_query.consulta). */
+    static final int MAX_CONSULTA = 1000;
+
     private final PendingQueryRepository repository;
     private final ExcelExporter excel;
 
-    /** HU09 */
+    /**
+     * HU09: registra la consulta del cliente.
+     * DEF-11: valida los datos antes de guardar (antes se guardaba cualquier texto como telefono,
+     * y el asesor no podia devolver el contacto). Responde 400 con un mensaje claro si algo no es valido.
+     */
     public PendingQuery registrar(PendingQueryRequest req) {
+        String nombre = (req.nombre() == null) ? "" : req.nombre().trim();
+        if (nombre.length() < 2 || nombre.length() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ingresa tu nombre (entre 2 y 100 caracteres).");
+        }
+        String consulta = (req.consulta() == null) ? "" : req.consulta().trim();
+        if (consulta.length() > MAX_CONSULTA) {
+            consulta = consulta.substring(0, MAX_CONSULTA);   // evita que una consulta larga rompa el registro
+        }
         return repository.save(PendingQuery.builder()
-                .nombre(req.nombre())
-                .telefono(req.telefono())
-                .consulta(req.consulta())
+                .nombre(nombre)
+                .telefono(normalizarCelular(req.telefono()))
+                .consulta(consulta)
                 .estado(PENDIENTE)
                 .build());
+    }
+
+    /**
+     * DEF-11: deja solo un celular peruano de 9 digitos que empieza con 9.
+     * Acepta espacios, guiones, parentesis y el prefijo +51 o 51 al escribirlo ("+51 987 654 321" -> "987654321").
+     * El asesor devuelve el contacto por WhatsApp, por eso no se aceptan telefonos fijos.
+     */
+    static String normalizarCelular(String telefono) {
+        String digitos = (telefono == null) ? "" : telefono.replaceAll("[\\s\\-().]", "");
+        if (digitos.startsWith("+51")) {
+            digitos = digitos.substring(3);
+        } else if (digitos.startsWith("51") && digitos.length() == 11) {
+            digitos = digitos.substring(2);
+        }
+        if (!digitos.matches("9\\d{8}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Ingresa un número de celular válido: 9 dígitos que empiecen con 9.");
+        }
+        return digitos;
     }
 
     /** HU10: de la mas reciente a la mas antigua. */

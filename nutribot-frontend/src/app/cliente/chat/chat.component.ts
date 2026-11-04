@@ -2,6 +2,7 @@ import { AfterViewChecked, Component, ElementRef, ViewChild } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiPublicaService } from '../../core/api-publica.service';
+import { normalizarCelular } from '../../shared/telefono';
 
 interface Message {
   role: 'user' | 'bot';
@@ -38,8 +39,24 @@ export class ChatComponent implements AfterViewChecked {
   consultaParaAsesor = '';         // consulta original (contexto para el asesor)
   private readonly conversationId = crypto.randomUUID();   // HU05: memoria de la sesion
 
+  /**
+   * DEF-15: si hay un asesor atendiendo. Lo decide el BACKEND (horario de atencion en hora de Peru)
+   * y llega en cada respuesta; antes se calculaba aqui con el reloj del navegador del cliente.
+   */
+  private asesorEnHorario = true;
+
   bitacoraNombre = '';
   bitacoraTelefono = '';
+  enviandoBitacora = false;
+
+  /** DEF-11: el boton solo se activa con un nombre (2+ letras) y un celular peruano valido */
+  get celularValido(): boolean {
+    return normalizarCelular(this.bitacoraTelefono) !== null;
+  }
+
+  get bitacoraValida(): boolean {
+    return this.bitacoraNombre.trim().length >= 2 && this.celularValido;
+  }
 
   /** Sprint 4: atajos para empezar la conversacion */
   readonly sugerencias = [
@@ -97,6 +114,7 @@ export class ChatComponent implements AfterViewChecked {
     this.loading = true;
     this.api.preguntar(text, this.conversationId, previousQuestion).subscribe({
       next: (res) => {
+        this.asesorEnHorario = res.asesorDisponible !== false;   // DEF-15: manda el backend
         const msg: Message = { role: 'bot', text: res.answer, interaccionId: res.interaccionId ?? undefined };
         if (res.accion === 'BOTON') {
           this.marcarDerivacion(msg);
@@ -126,21 +144,28 @@ export class ChatComponent implements AfterViewChecked {
     this.api.valorar(m.interaccionId, valor).subscribe({ error: () => (m.valoracion = undefined) });
   }
 
-  /** HU09: registrar los datos del cliente en la bitacora */
+  /** HU09: registrar los datos del cliente en la bitacora (DEF-11: celular validado) */
   enviarBitacora(): void {
     const nombre = this.bitacoraNombre.trim();
-    const telefono = this.bitacoraTelefono.trim();
-    if (!nombre || !telefono) {
+    const celular = normalizarCelular(this.bitacoraTelefono);
+    if (nombre.length < 2 || !celular || this.enviandoBitacora) {
       return;
     }
-    this.api.registrarConsulta(nombre, telefono, this.consultaParaAsesor).subscribe({
+    this.enviandoBitacora = true;
+    this.api.registrarConsulta(nombre, celular, this.consultaParaAsesor).subscribe({
       next: () => {
         this.messages.forEach((m) => (m.pedirDatos = false));
-        this.agregar({ role: 'bot', text: `Gracias ${nombre}. Tu consulta quedó registrada y un asesor te contactará al ${telefono}.` });
+        this.agregar({ role: 'bot', text: `Gracias ${nombre}. Tu consulta quedó registrada y un asesor te contactará al ${celular}.` });
         this.bitacoraNombre = '';
         this.bitacoraTelefono = '';
+        this.enviandoBitacora = false;
       },
-      error: () => this.agregar({ role: 'bot', text: 'No pude registrar tus datos. Intenta nuevamente.' })
+      error: (err) => {
+        // el backend explica que fallo (por ejemplo, "Ingresa un número de celular válido...")
+        const detalle = err?.error?.message;
+        this.agregar({ role: 'bot', text: detalle ? `No pude registrar tus datos: ${detalle}` : 'No pude registrar tus datos. Intenta nuevamente.' });
+        this.enviandoBitacora = false;
+      }
     });
   }
 
@@ -173,20 +198,9 @@ export class ChatComponent implements AfterViewChecked {
     }
   }
 
-  // Horario de atencion en hora de Peru: Lun-Vie 8:00-18:00, Sab 8:00-13:00
+  // DEF-15: el horario lo decide el backend (nutribot.asesor.* en application.yml)
   private asesorDisponible(): boolean {
-    const partes = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Lima', weekday: 'short', hour: '2-digit', hourCycle: 'h23'
-    }).formatToParts(new Date());
-    const dia = partes.find((p) => p.type === 'weekday')?.value ?? '';
-    const hora = parseInt(partes.find((p) => p.type === 'hour')?.value ?? '0', 10);
-    if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dia)) {
-      return hora >= 8 && hora < 18;
-    }
-    if (dia === 'Sat') {
-      return hora >= 8 && hora < 13;
-    }
-    return false;
+    return this.asesorEnHorario;
   }
 
   private esAfirmacion(text: string): boolean {

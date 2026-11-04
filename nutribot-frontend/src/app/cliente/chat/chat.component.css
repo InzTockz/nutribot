@@ -42,3 +42,7 @@
 .redactor button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: #2e7d32; color: #fff; font-size: 16px; cursor: pointer; flex: none; }
 .redactor button:disabled { background: #a5d6a7; cursor: not-allowed; }
 .pie { text-align: center; font-size: 11px; color: #98a39c; margin: 0; padding: 0 0 8px; }
+
+/* DEF-11: aviso de celular invalido */
+.formulario input.invalido { border-color: #c62828; }
+.formulario .aviso { color: #c62828; font-size: 12px; margin-top: -4px; }

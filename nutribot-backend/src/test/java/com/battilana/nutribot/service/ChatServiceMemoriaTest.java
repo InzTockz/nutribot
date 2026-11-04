@@ -19,7 +19,7 @@ class ChatServiceMemoriaTest {
     private final ChatMemory memoria = mock(ChatMemory.class);
     private final ChatService service = new ChatService(
             mock(ChatClient.class), mock(ChatClient.class), mock(ChatClient.class),
-            mock(VectorStore.class), mock(InteraccionService.class), memoria);
+            mock(VectorStore.class), mock(InteraccionService.class), memoria, mock(HorarioAtencion.class));
 
     @Test
     void liberaSoloLasConversacionesInactivas() {

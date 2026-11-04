@@ -1,5 +1,6 @@
 package com.battilana.nutribot.service;
 
+import com.battilana.nutribot.dto.PendingQueryRequest;
 import com.battilana.nutribot.model.PendingQuery;
 import com.battilana.nutribot.repository.PendingQueryRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -17,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/** Sprint 4 (HU11): cambio de estado y filtros de la bitacora. */
+/** Sprint 4 (HU09, HU11): registro validado (DEF-11), cambio de estado y filtros de la bitacora. */
 @DisplayName("PendingQueryService — bitácora")
 class PendingQueryServiceTest {
 
@@ -75,5 +76,45 @@ class PendingQueryServiceTest {
         when(repo.findAll(any(Sort.class))).thenReturn(List.of(consulta(1L, "PENDIENTE", LocalDateTime.now())));
         byte[] archivo = service.exportarExcel("TODOS", null);
         assertThat(new String(archivo, 0, 2)).isEqualTo("PK");
+    }
+
+    // ---------- DEF-11: validacion del registro de la bitacora ----------
+
+    @Test
+    void aceptaCelularesPeruanosYLosGuardaLimpios() {
+        assertThat(PendingQueryService.normalizarCelular("987654321")).isEqualTo("987654321");
+        assertThat(PendingQueryService.normalizarCelular("+51 987 654 321")).isEqualTo("987654321");
+        assertThat(PendingQueryService.normalizarCelular("51987654321")).isEqualTo("987654321");
+        assertThat(PendingQueryService.normalizarCelular("987-654-321")).isEqualTo("987654321");
+    }
+
+    @Test
+    void rechazaTextoFijosYLongitudesIncorrectasConError400() {
+        for (String malo : new String[] {"Gonzales", "014567890", "98765432", "9876543210", "", null}) {
+            assertThatThrownBy(() -> PendingQueryService.normalizarCelular(malo))
+                    .as("telefono: %s", malo)
+                    .isInstanceOf(ResponseStatusException.class).hasMessageContaining("400");
+        }
+    }
+
+    @Test
+    void registrarValidaElNombreYNoGuardaSiEsInvalido() {
+        assertThatThrownBy(() -> service.registrar(new PendingQueryRequest(" J ", "987654321", "Precio")))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("400");
+        assertThatThrownBy(() -> service.registrar(new PendingQueryRequest("Juan", "Gonzales", "Precio")))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("400");
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    void registrarGuardaElCelularNormalizadoYRecortaConsultasLargas() {
+        when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        PendingQuery q = service.registrar(new PendingQueryRequest("  Juan Pérez ", "+51 987 654 321", "x".repeat(1500)));
+
+        assertThat(q.getNombre()).isEqualTo("Juan Pérez");
+        assertThat(q.getTelefono()).isEqualTo("987654321");
+        assertThat(q.getConsulta()).hasSize(PendingQueryService.MAX_CONSULTA);
+        assertThat(q.getEstado()).isEqualTo("PENDIENTE");
     }
 }
