@@ -1,4 +1,4 @@
-<div class="app">
+<div class="app" [class.ancha]="tab === 'bitacora' || tab === 'metricas'">
   <header class="header">
     <h1>NutriBot</h1>
     <p>Asistente virtual de Battilana Nutricion SAC</p>
@@ -13,6 +13,9 @@
     </button>
     <button [class.active]="tab === 'bitacora'" (click)="switchTab('bitacora')">
       Bitácora
+    </button>
+    <button [class.active]="tab === 'metricas'" (click)="switchTab('metricas')">
+      Métricas
     </button>
   </nav>
 
@@ -32,6 +35,19 @@
         >
           {{ m.text }}
         </div>
+
+        <!-- HU13: el cliente valora la respuesta -->
+        <div *ngIf="m.role === 'bot' && m.interaccionId" class="valoracion">
+          <ng-container *ngIf="!m.valoracion; else gracias">
+            <span>¿Te sirvió esta respuesta?</span>
+            <button type="button" title="Útil" (click)="valorar(m, 'UTIL')">👍</button>
+            <button type="button" title="No útil" (click)="valorar(m, 'NO_UTIL')">👎</button>
+          </ng-container>
+          <ng-template #gracias>
+            <span>Gracias por tu valoración {{ m.valoracion === "UTIL" ? "👍" : "👎" }}</span>
+          </ng-template>
+        </div>
+
         <button
           *ngIf="m.derivar"
           type="button"
@@ -157,7 +173,9 @@
         />
       </label>
       <button (click)="loadPendientes()">Actualizar</button>
+      <button class="btn-export" (click)="exportarBitacora()">Exportar a Excel</button>
     </div>
+    <p *ngIf="bitacoraMsg" class="upload-msg">{{ bitacoraMsg }}</p>
 
     <table *ngIf="pendientesFiltrados.length > 0" class="docs">
       <thead>
@@ -168,6 +186,7 @@
           <th>Consulta</th>
           <th>Fecha / hora</th>
           <th>Estado</th>
+          <th>Acción</th>
         </tr>
       </thead>
       <tbody>
@@ -177,7 +196,18 @@
           <td>{{ p.telefono }}</td>
           <td>{{ p.consulta }}</td>
           <td>{{ p.createdAt | date: "dd/MM/yyyy HH:mm" }}</td>
-          <td>{{ p.estado }}</td>
+          <td>
+            <span class="estado" [class.atendida]="p.estado === 'ATENDIDA'">{{ p.estado }}</span>
+          </td>
+          <td>
+            <button
+              class="btn-estado"
+              [class.reabrir]="p.estado === 'ATENDIDA'"
+              (click)="cambiarEstado(p)"
+            >
+              {{ p.estado === "ATENDIDA" ? "Reabrir" : "Marcar atendida" }}
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -185,4 +215,7 @@
       No hay consultas pendientes con esos filtros.
     </p>
   </section>
+
+  <!-- ===================== METRICAS (HU12, HU13) ===================== -->
+  <app-metricas *ngIf="tab === 'metricas'"></app-metricas>
 </div>

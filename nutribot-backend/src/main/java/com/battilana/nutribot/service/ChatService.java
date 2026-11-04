@@ -1,6 +1,7 @@
 package com.battilana.nutribot.service;
 
 import com.battilana.nutribot.dto.ChatResponse;
+import com.battilana.nutribot.model.CaminoConsulta;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -23,6 +24,9 @@ import java.util.stream.Collectors;
  * El asesor se ofrece SOLO cuando:
  *   (a) el cliente lo pide explicitamente (HU07), o
  *   (b) no hay informacion suficiente en la base de conocimiento -> baja certeza (HU08).
+ *
+ * Sprint 4: cada consulta se registra en la tabla interaccion (tiempo, camino y accion),
+ * que alimenta el panel de metricas (HU12) y la valoracion de respuestas (HU13).
  */
 @Service
 @RequiredArgsConstructor
@@ -32,6 +36,11 @@ public class ChatService {
     private final ChatClient nutribotReformulacionChatClient;
     private final ChatClient nutribotContextoChatClient;
     private final VectorStore vectorStore;
+    private final InteraccionService interaccionService;
+
+    /** Resultado interno de procesar una consulta: la respuesta, la accion y el camino seguido. */
+    private record Resultado(String answer, String accion, CaminoConsulta camino) {
+    }
 
     @Value("${nutribot.rag.similarity-threshold:0.4}")
     private double similarityThreshold;
@@ -115,11 +124,36 @@ public class ChatService {
         final String convId = (conversationId == null || conversationId.isBlank())
                 ? "default" : conversationId;
 
+        // Sprint 4: se mide el tiempo de TODA la atencion (clasificacion + busqueda + modelo)
+        long inicio = System.nanoTime();
+        Resultado r;
+        try {
+            r = procesar(message, convId, previousQuestion);
+        } catch (RuntimeException e) {
+            // Tambien se registran los fallos (p. ej. Ollama apagado): alimentan la metrica de fiabilidad
+            interaccionService.registrar(convId, message, null, CaminoConsulta.ERROR, "ERROR", milisDesde(inicio));
+            throw e;
+        }
+        Long interaccionId = interaccionService.registrar(
+                convId, message, r.answer(), r.camino(), r.accion(), milisDesde(inicio));
+        return new ChatResponse(r.answer(), r.accion(), interaccionId);
+    }
+
+    /** Milisegundos transcurridos desde un instante tomado con System.nanoTime(). */
+    private static long milisDesde(long inicioNanos) {
+        return (System.nanoTime() - inicioNanos) / 1_000_000;
+    }
+
+    /**
+     * Logica de atencion (sin cambios funcionales respecto del Sprint 3): decide el camino,
+     * consulta la base de conocimiento y arma la respuesta.
+     */
+    private Resultado procesar(String message, String convId, String previousQuestion) {
         String texto = normalizar(message);
 
         // (a) El cliente pide explicitamente un asesor -> boton directo
         if (PIDE_ASESOR.stream().anyMatch(texto::contains)) {
-            return new ChatResponse("Con gusto, puedes hablar con un asesor con el boton de abajo.", "BOTON");
+            return new Resultado("Con gusto, puedes hablar con un asesor con el boton de abajo.", "BOTON", CaminoConsulta.ASESOR);
         }
 
         // HU05 (b): reformulacion -> se responde SOLO con el historial, sin recuperar nada.
@@ -130,7 +164,7 @@ public class ChatService {
                     .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, convId))
                     .call()
                     .content();
-            return new ChatResponse(reformulada, "NINGUNA");
+            return new Resultado(reformulada, "NINGUNA", CaminoConsulta.REFORMULACION);
         }
 
         // HU05: si la pregunta es de seguimiento ("¿y cuanto cuesta?"), la contextualizamos con la
@@ -167,8 +201,9 @@ public class ChatService {
                 .similarityThreshold(similarityThreshold)
                 .build());
         if (relevantes == null || relevantes.isEmpty()) {
-            return new ChatResponse(
-                    "No encontre esa informacion en mi base de conocimiento. Si deseas, puedo derivarte con un asesor.", "BOTON");
+            return new Resultado(
+                    "No encontre esa informacion en mi base de conocimiento. Si deseas, puedo derivarte con un asesor.", "BOTON",
+                    CaminoConsulta.SIN_INFO);
         }
 
         boolean consultaPrecio = ES_CONSULTA_PRECIO.stream().anyMatch(texto::contains);
@@ -213,14 +248,15 @@ public class ChatService {
             // Precio variable / sin precio / sin stock / desconocido -> boton directo.
             // Precio fijo + en stock -> preguntar si desea un asesor (boton solo si confirma).
             if (incierto) {
-                return new ChatResponse(answer, "BOTON");
+                return new Resultado(answer, "BOTON", CaminoConsulta.PRECIO);
             }
-            return new ChatResponse(
-                    answer + "\n\n¿Deseas que te derive con un asesor para concretar tu compra?", "PREGUNTAR");
+            return new Resultado(
+                    answer + "\n\n¿Deseas que te derive con un asesor para concretar tu compra?", "PREGUNTAR",
+                    CaminoConsulta.PRECIO);
         }
 
         // Pregunta general: si el bot no tiene la info -> boton; si respondio bien -> nada
-        return new ChatResponse(answer, incierto ? "BOTON" : "NINGUNA");
+        return new Resultado(answer, incierto ? "BOTON" : "NINGUNA", CaminoConsulta.GENERAL);
     }
 
     /**

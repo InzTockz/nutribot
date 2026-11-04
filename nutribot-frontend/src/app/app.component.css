@@ -135,3 +135,19 @@
 .bitacora-form input { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
 .bitacora-form button { padding: 8px; background: #2e7d32; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
 .bitacora-form button:disabled { background: #a5d6a7; cursor: not-allowed; }
+
+/* ===================== Sprint 4 ===================== */
+/* Bitacora y Metricas necesitan mas ancho para sus tablas y graficos */
+.app.ancha { max-width: 1040px; }
+
+/* HU13: valoracion de la respuesta por el cliente */
+.valoracion { align-self: flex-start; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #777; margin-top: -4px; }
+.valoracion button { background: #fff; border: 1px solid #ddd; border-radius: 14px; padding: 2px 8px; cursor: pointer; font-size: 0.9rem; }
+.valoracion button:hover { background: #e8f5e9; border-color: #2e7d32; }
+
+/* HU11: estado y acciones de la bitacora */
+.estado { background: #fff3e0; color: #e65100; border-radius: 10px; padding: 2px 8px; font-size: 0.8rem; }
+.estado.atendida { background: #e8f5e9; color: #1b5e20; }
+.btn-estado { background: #2e7d32; color: #fff; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 0.8rem; white-space: nowrap; }
+.btn-estado.reabrir { background: #fff; color: #555; border: 1px solid #ccc; }
+.filtros .btn-export { background: #fff; color: #2e7d32; border: 1px solid #2e7d32; }

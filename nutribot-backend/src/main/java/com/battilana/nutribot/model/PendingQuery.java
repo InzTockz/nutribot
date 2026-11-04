@@ -35,6 +35,8 @@ public class PendingQuery {
 
     private LocalDateTime createdAt;
 
+    private LocalDateTime atendidaAt;   // HU11: cuando el asesor la marco como atendida (null si sigue pendiente)
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {

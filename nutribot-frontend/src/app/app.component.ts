@@ -2,23 +2,29 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatService, KnowledgeDocument, PendingQuery } from './services/chat.service';
+import { MetricasComponent } from './metricas/metricas.component';
+import { descargarArchivo, fechaIso } from './utils/descargar';
+
+type Tab = 'chat' | 'admin' | 'bitacora' | 'metricas';
 
 interface Message {
   role: 'user' | 'bot';
   text: string;
   derivar?: boolean;     // muestra el boton de WhatsApp (hay asesor disponible)
   pedirDatos?: boolean;  // muestra el formulario de bitacora (no hay asesor) - HU09
+  interaccionId?: number; // Sprint 4: id de la interaccion en el backend (HU13: valoracion)
+  valoracion?: 'UTIL' | 'NO_UTIL'; // HU13: valoracion que dio el cliente a esta respuesta
 }
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MetricasComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
 export class AppComponent {
 
-  tab: 'chat' | 'admin' | 'bitacora' = 'chat';
+  tab: Tab = 'chat';
 
   // ----- Chat (HU01) -----
   messages: Message[] = [];
@@ -43,10 +49,11 @@ export class AppComponent {
   pendientes: PendingQuery[] = [];
   filtroEstado = 'TODOS';
   filtroFecha = '';
+  bitacoraMsg = '';   // HU11: resultado de marcar atendida / exportar
 
   constructor(private chatService: ChatService) {}
 
-  switchTab(t: 'chat' | 'admin' | 'bitacora'): void {
+  switchTab(t: Tab): void {
     this.tab = t;
     if (t === 'admin') {
       this.loadDocuments();
@@ -90,7 +97,7 @@ export class AppComponent {
     this.loading = true;
     this.chatService.ask(text, this.conversationId, previousQuestion).subscribe({
       next: (res) => {
-        const msg: Message = { role: 'bot', text: res.answer };
+        const msg: Message = { role: 'bot', text: res.answer, interaccionId: res.interaccionId ?? undefined };
         if (res.accion === 'BOTON') {
           this.marcarDerivacion(msg);
         }
@@ -223,8 +230,42 @@ export class AppComponent {
     });
   }
 
+  // HU13: el cliente valora una respuesta del bot (una sola vez por respuesta)
+  valorar(m: Message, valor: 'UTIL' | 'NO_UTIL'): void {
+    if (!m.interaccionId || m.valoracion) {
+      return;
+    }
+    m.valoracion = valor;
+    this.chatService.valorar(m.interaccionId, valor).subscribe({
+      error: () => (m.valoracion = undefined)   // si no se guardo, se vuelven a mostrar los botones
+    });
+  }
+
+  // HU11: marcar una consulta como atendida, o reabrirla si se marco por error
+  cambiarEstado(p: PendingQuery): void {
+    const nuevo = p.estado === 'ATENDIDA' ? 'PENDIENTE' : 'ATENDIDA';
+    this.chatService.cambiarEstado(p.id, nuevo).subscribe({
+      next: (actualizada) => {
+        Object.assign(p, actualizada);
+        this.bitacoraMsg = nuevo === 'ATENDIDA'
+          ? `Consulta #${p.id} marcada como atendida.`
+          : `Consulta #${p.id} reabierta.`;
+      },
+      error: () => (this.bitacoraMsg = 'No se pudo actualizar el estado.')
+    });
+  }
+
+  // HU11: exportar la bitacora a Excel con los filtros vigentes
+  exportarBitacora(): void {
+    this.chatService.exportarBitacora(this.filtroEstado, this.filtroFecha).subscribe({
+      next: (blob) => descargarArchivo(blob, `bitacora-${fechaIso(new Date())}.xlsx`),
+      error: () => (this.bitacoraMsg = 'No se pudo exportar la bitacora.')
+    });
+  }
+
   // HU10: cargar la bitacora de consultas pendientes
   loadPendientes(): void {
+    this.bitacoraMsg = '';
     this.chatService.listPendingQueries().subscribe({
       next: (lista) => (this.pendientes = lista),
       error: () => (this.pendientes = [])
