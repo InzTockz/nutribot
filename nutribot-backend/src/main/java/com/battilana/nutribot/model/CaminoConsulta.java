@@ -7,6 +7,8 @@ package com.battilana.nutribot.model;
 public enum CaminoConsulta {
     /** El cliente pidio hablar con un asesor (HU07). */
     ASESOR,
+    /** DEF-17: el cliente pregunta por la direccion, la tienda o donde comprar: respuesta fija. */
+    UBICACION,
     /** "Explicalo mas simple": se responde solo con el historial, sin RAG (HU05). */
     REFORMULACION,
     /** Ningun fragmento supero el umbral de similitud: derivacion por baja certeza (HU08). */

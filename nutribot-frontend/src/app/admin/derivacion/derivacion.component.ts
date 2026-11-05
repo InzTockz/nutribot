@@ -50,7 +50,8 @@ export class DerivacionComponent implements OnInit {
     switch (i.camino) {
       case 'PRECIO': return { titulo: 'Precio o disponibilidad', detalle: 'La consulta menciona precio, stock o compra: la búsqueda se restringe a la lista de precios y al producto consultado.' };
       case 'ASESOR': return { titulo: 'Pedido de asesor', detalle: 'El cliente pidió hablar con una persona: no se consulta la base de conocimiento.' };
-      case 'SIN_INFO': return { titulo: 'Sin información', detalle: 'La búsqueda en la base de conocimiento no encontró fragmentos parecidos a la consulta.' };
+      case 'UBICACION': return { titulo: 'Dirección o dónde comprar', detalle: 'El cliente preguntó por la dirección, una tienda o dónde comprar: se responde con el mensaje oficial (no hay tienda; las ventas son por WhatsApp).' };
+      case 'SIN_INFO': return { titulo: 'Sin información', detalle: 'La búsqueda no encontró fragmentos parecidos o el tema de la consulta no aparece en la base de conocimiento (DEF-16).' };
       case 'REFORMULACION': return { titulo: 'Reformulación', detalle: 'El cliente pidió explicar mejor la respuesta anterior: se responde con el historial.' };
       default: return { titulo: 'Consulta general', detalle: 'Información técnica o de la empresa: búsqueda en toda la base de conocimiento.' };
     }
@@ -61,8 +62,11 @@ export class DerivacionComponent implements OnInit {
     if (i.camino === 'ASESOR') {
       return { titulo: 'El cliente lo pidió', detalle: 'El mensaje contiene una palabra como «asesor», «humano», «vendedor» o «una persona».' };
     }
+    if (i.camino === 'UBICACION') {
+      return { titulo: 'Venta solo por WhatsApp', detalle: 'Battilana no tiene tienda ni punto de venta: se da la dirección de la planta y se ofrece un asesor por WhatsApp.' };
+    }
     if (i.camino === 'SIN_INFO') {
-      return { titulo: 'Baja certeza', detalle: 'Ningún fragmento superó el umbral de similitud (0.40): se deriva en lugar de inventar una respuesta.' };
+      return { titulo: 'Baja certeza', detalle: 'Ningún fragmento superó el umbral (0.40) o ninguna palabra clave de la consulta aparece en la base de conocimiento: se deriva en lugar de inventar una respuesta.' };
     }
     if (i.camino === 'PRECIO' && i.accion === 'PREGUNTAR') {
       return { titulo: 'Precio fijo y en stock', detalle: 'Se ofrece un asesor para concretar la compra; solo se deriva si el cliente confirma.' };
@@ -74,6 +78,6 @@ export class DerivacionComponent implements OnInit {
   }
 
   colorCamino(c: string): string {
-    return c === 'PRECIO' ? 'azul' : c === 'SIN_INFO' ? 'rojo' : c === 'ASESOR' ? 'gris' : 'verde';
+    return c === 'PRECIO' ? 'azul' : c === 'SIN_INFO' ? 'rojo' : (c === 'ASESOR' || c === 'UBICACION') ? 'gris' : 'verde';
   }
 }

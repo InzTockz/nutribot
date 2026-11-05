@@ -72,6 +72,32 @@ public class ChatService {
     private static final List<String> PIDE_ASESOR = List.of(
             "asesor", "humano", "una persona", "vendedor", "agente", "hablar con alguien");
 
+    /**
+     * DEF-17: preguntas por la direccion, la tienda o donde comprar. Battilana no tiene tienda ni
+     * punto de venta: todo se vende por WhatsApp. Se responde con un mensaje fijo (como cuando se
+     * pide un asesor) porque el modelo, aun con el dato delante, lo ignoraba o inventaba
+     * "sucursales" y una "pagina web".
+     */
+    private static final List<String> PIDE_UBICACION = List.of(
+            "direccion", "ubicad", "ubicacion", "donde estan", "donde queda", "donde se encuentran",
+            "tienda", "punto de venta", "puntos de venta", "sucursal", "donde compro",
+            "donde puedo comprar", "donde comprar", "donde venden", "donde los encuentro",
+            "atienden en persona", "visitarlos", "ir a comprar");
+
+    /** DEF-17: si ademas pide un precio, manda la ruta de precios (no la respuesta fija). */
+    private static final List<String> PIDE_MONTO = List.of(
+            "precio", "costo", "cuesta", "cuestan", "vale", "valen", "cobran", "cotiz");
+
+    /** DEF-17: texto oficial (se puede cambiar en application.yml: nutribot.empresa.mensaje-ubicacion). */
+    static final String MENSAJE_UBICACION =
+            "Battilana Nutrición no cuenta con tienda ni punto de venta al público: todas las ventas se "
+            + "atienden por WhatsApp con un asesor, que toma tu pedido, confirma el precio y la disponibilidad "
+            + "y coordina la entrega a domicilio o en granja. Nuestra planta central se encuentra en Calle Los "
+            + "Claveles Mz. A Lote A-2, Urb. Fundo Casco Viejo, Lurín, Lima.";
+
+    @Value("${nutribot.empresa.mensaje-ubicacion:}")
+    private String mensajeUbicacionConfigurado;
+
     // Consultas de precio/compra
     private static final List<String> ES_CONSULTA_PRECIO = List.of(
             "precio", "costo", "cuesta", "cuestan", "vale", "valen", "valor", "sale en",
@@ -80,7 +106,30 @@ public class ChatService {
     // Senales de incertidumbre en la respuesta (precio variable / sin precio / sin stock / desconocido)
     private static final List<String> INCERTIDUMBRE = List.of(
             "variable", "consultar", "bajo pedido", "sin stock", "no hay stock", "agotado",
-            "no especifica", "no tengo esa informacion", "no encontre", "no esta disponible");
+            "no especifica", "no tengo esa informacion", "no encontre", "no esta disponible",
+            // DEF-16: negaciones que el modelo inventa cuando no encuentra el dato
+            // ("No es un producto que se ofrece en Battilana"); tambien deben derivar al asesor
+            "no es un producto", "no se ofrece", "no ofrecemos", "no ofrece", "no vendemos",
+            "no se vende", "no contamos", "no manejamos", "no trabajamos");
+
+    /** DEF-16: respuesta estandar cuando la base de conocimiento no tiene el dato. */
+    static final String SIN_INFORMACION =
+            "No encontre esa informacion en mi base de conocimiento. Si deseas, puedo derivarte con un asesor.";
+
+    /**
+     * DEF-16: palabras demasiado generales para decir de QUE trata una pregunta. Aparecen en casi
+     * todos los documentos ("alimento", "balanceado") o son cortesia ("hola", "gracias"), asi que
+     * no sirven para comprobar que el tema exista en la base de conocimiento.
+     */
+    private static final Set<String> PALABRAS_GENERICAS = Set.of(
+            "alimento", "alimentos", "balanceado", "balanceados", "producto", "productos",
+            "comida", "comidas", "tipo", "tipos", "battilana", "nutricion", "empresa", "sac",
+            "actualmente", "ahora", "venta", "ventas", "disponible", "disponibles", "ofrecen",
+            "quiero", "quisiera", "saber", "favor", "ayuda", "ayudar", "consulta", "pregunta",
+            "hola", "buenas", "buenos", "dias", "tardes", "noches", "gracias", "ok", "okay",
+            "entre", "otro", "otra", "otros", "otras", "mas", "muy", "bien", "algo", "todo", "todos",
+            // DEF-17: verbos de intencion que no dicen el tema ("¿donde PUEDO comprar?")
+            "puedo", "puedes", "podria", "podrian", "tengo", "tienes", "busco", "necesito", "hacer");
 
     /**
      * HU05: seguimiento de tipo REFORMULACION. El cliente no pide informacion nueva, pide la
@@ -164,6 +213,17 @@ public class ChatService {
         return new ChatResponse(r.answer(), r.accion(), interaccionId, asesorDisponible);
     }
 
+    /** DEF-17: no hay tienda; las ventas son por WhatsApp. El cierre depende del horario (DEF-15). */
+    String mensajeUbicacion(boolean asesorDisponible) {
+        String base = (mensajeUbicacionConfigurado == null || mensajeUbicacionConfigurado.isBlank())
+                ? MENSAJE_UBICACION : mensajeUbicacionConfigurado.trim();
+        if (asesorDisponible) {
+            return base + " Puedes escribirle a un asesor con el botón de abajo.";
+        }
+        return base + " En este momento estamos fuera del horario de atención (" + horarioAtencion.descripcion()
+                + "): déjanos tus datos en el formulario y un asesor te contactará.";
+    }
+
     /** DEF-15: respuesta cuando el cliente pide un asesor, segun el horario de atencion. */
     String mensajeAsesor(boolean asesorDisponible) {
         if (asesorDisponible) {
@@ -228,6 +288,11 @@ public class ChatService {
             return new Resultado(mensajeAsesor(asesorDisponible), "BOTON", CaminoConsulta.ASESOR);
         }
 
+        // DEF-17: direccion, tienda o donde comprar -> respuesta oficial fija + asesor por WhatsApp
+        if (PIDE_UBICACION.stream().anyMatch(texto::contains) && PIDE_MONTO.stream().noneMatch(texto::contains)) {
+            return new Resultado(mensajeUbicacion(asesorDisponible), "BOTON", CaminoConsulta.UBICACION);
+        }
+
         // HU05 (b): reformulacion -> se responde SOLO con el historial, sin recuperar nada.
         // No actualiza el tema vigente: "explicalo mas simple" no cambia de que se esta hablando.
         if (esReformulacion(texto)) {
@@ -273,12 +338,19 @@ public class ChatService {
                 .similarityThreshold(similarityThreshold)
                 .build());
         if (relevantes == null || relevantes.isEmpty()) {
-            return new Resultado(
-                    "No encontre esa informacion en mi base de conocimiento. Si deseas, puedo derivarte con un asesor.", "BOTON",
-                    CaminoConsulta.SIN_INFO);
+            return new Resultado(SIN_INFORMACION, "BOTON", CaminoConsulta.SIN_INFO);
         }
 
         boolean consultaPrecio = ES_CONSULTA_PRECIO.stream().anyMatch(texto::contains);
+
+        // DEF-16: verificacion de anclaje. La similitud vectorial mide si la FRASE se parece a los
+        // documentos, no si el TEMA existe: "¿Que es un alimento para dragones?" obtuvo 0.723
+        // (mas que preguntas reales: 0.661 y 0.617). Si ninguna palabra clave de la pregunta
+        // aparece en lo recuperado, no hay de que hablar y el modelo terminaria inventando.
+        if (!consultaPrecio && !temaEnBase(relevantes, message, sujeto)) {
+            log.info("DEF-16: sin anclaje en la base de conocimiento para \"{}\" -> SIN_INFO", message);
+            return new Resultado(SIN_INFORMACION, "BOTON", CaminoConsulta.SIN_INFO);
+        }
 
         String answer;
         if (consultaPrecio) {
@@ -295,6 +367,13 @@ public class ChatService {
                     .build());
             // Si la lista de precios no esta indexada con ese nombre, seguimos con lo general.
             List<Document> base = (deLaLista == null || deLaLista.isEmpty()) ? relevantes : deLaLista;
+            // DEF-16: el producto consultado debe figurar en la lista o en lo recuperado
+            List<Document> recuperados = new java.util.ArrayList<>(base);
+            recuperados.addAll(relevantes);
+            if (!temaEnBase(recuperados, message, sujeto)) {
+                log.info("DEF-16: producto sin anclaje para \"{}\" -> SIN_INFO", message);
+                return new Resultado(SIN_INFORMACION, "BOTON", CaminoConsulta.SIN_INFO);
+            }
 
             // DEF-08: ademas, NO dejamos que el modelo elija entre varios productos. Filtramos el
             // contexto al bloque del producto consultado y se lo inyectamos ya acotado, de modo
@@ -313,8 +392,7 @@ public class ChatService {
                     .call()
                     .content();
         }
-        String low = (answer == null) ? "" : normalizar(answer);
-        boolean incierto = INCERTIDUMBRE.stream().anyMatch(low::contains);
+        boolean incierto = respuestaIncierta(answer);
 
         if (consultaPrecio) {
             // Precio variable / sin precio / sin stock / desconocido -> boton directo.
@@ -329,6 +407,115 @@ public class ChatService {
 
         // Pregunta general: si el bot no tiene la info -> boton; si respondio bien -> nada
         return new Resultado(answer, incierto ? "BOTON" : "NINGUNA", CaminoConsulta.GENERAL);
+    }
+
+    /**
+     * DEF-16: ¿el TEMA de la pregunta existe en la base de conocimiento?
+     *  1. Se sacan las palabras clave de la pregunta y del sujeto (en un seguimiento como
+     *     "¿y cuanto cuesta?" el tema viene del sujeto), sin interrogativos, verbos ni genericas.
+     *  2. Si alguna aparece (por su raiz: "ubicados" ~ "ubicada" ~ "ubicacion") en lo recuperado,
+     *     el tema existe.
+     *  3. Segunda oportunidad: si no aparece, se busca de nuevo SOLO con las palabras clave. Asi
+     *     "¿Cual es su direccion?" encuentra el fragmento que dice "direccion" aunque la primera
+     *     busqueda lo dejara en el puesto 28; "dragones" no aparece en ningun lado y se bloquea.
+     * Si no queda ninguna palabra clave (saludos, "¿que alimentos tienen?") no se puede juzgar
+     * y se deja responder al modelo como antes.
+     */
+    boolean temaEnBase(List<Document> recuperados, String pregunta, String sujeto) {
+        List<String> claves = palabrasClave((pregunta == null ? "" : pregunta) + " " + (sujeto == null ? "" : sujeto));
+        if (claves.isEmpty() || mencionaAlguna(recuperados, claves)) {
+            return true;
+        }
+        List<Document> segunda = vectorStore.similaritySearch(SearchRequest.builder()
+                .query(String.join(" ", claves))
+                .topK(topK)
+                .similarityThreshold(similarityThreshold)
+                .build());
+        return segunda != null && mencionaAlguna(segunda, claves);
+    }
+
+    /** DEF-16: palabras (normalizadas) que dicen de que trata la pregunta. */
+    static List<String> palabrasClave(String texto) {
+        String limpio = normalizar(texto == null ? "" : texto).replaceAll("[^a-z0-9ñ ]", " ").trim();
+        if (limpio.isEmpty()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(limpio.split("\\s+"))
+                .filter(p -> p.length() > 2)
+                .filter(p -> !PALABRAS_VACIAS.contains(p) && !PALABRAS_GENERICAS.contains(p))
+                .distinct()
+                .toList();
+    }
+
+    /** DEF-16: ¿algun documento contiene alguna de las palabras, comparando por raiz? */
+    static boolean mencionaAlguna(List<Document> documentos, List<String> palabras) {
+        if (documentos == null || documentos.isEmpty()) {
+            return false;
+        }
+        String texto = normalizar(documentos.stream()
+                .map(Document::getText)
+                .filter(t -> t != null)
+                .collect(Collectors.joining(" ")));
+        Set<String> raices = java.util.Arrays.stream(texto.split("[^a-z0-9ñ]+"))
+                .filter(p -> !p.isEmpty())
+                .map(ChatService::raizTema)
+                .collect(Collectors.toSet());
+        return palabras.stream()
+                .flatMap(p -> equivalentes(p).stream())
+                .anyMatch(raices::contains);
+    }
+
+    /**
+     * DEF-16: sinonimos del vocabulario de la empresa. La base de conocimiento usa una palabra y el
+     * cliente otra: el documento dice "UBICACION" y el cliente pregunta por la "direccion".
+     * La lista es corta a proposito: solo datos institucionales que se piden con otras palabras.
+     */
+    private static final Map<String, List<String>> SINONIMOS = Map.of(
+            "direccion", List.of("ubicacion", "ubicada", "sede", "local", "oficina"),
+            "envio", List.of("entrega", "despacho", "delivery", "reparto"),
+            "telefono", List.of("contacto", "celular", "whatsapp", "numero"),
+            "abren", List.of("horario", "atencion"),
+            "cierran", List.of("horario", "atencion"),
+            "pago", List.of("pagos", "yape", "plin", "transferencia", "deposito"));
+
+    /** DEF-16: raices con las que se busca una palabra: la suya y las de sus sinonimos. */
+    static Set<String> equivalentes(String palabra) {
+        String raiz = raizTema(palabra);
+        Set<String> todas = new java.util.HashSet<>();
+        todas.add(raiz);
+        SINONIMOS.forEach((clave, lista) -> {
+            if (raizTema(clave).equals(raiz)) {
+                lista.forEach(sinonimo -> todas.add(raizTema(sinonimo)));
+            }
+        });
+        return todas;
+    }
+
+    /** DEF-16: terminaciones que se quitan para comparar palabras de la misma familia. */
+    private static final List<String> SUFIJOS = List.of(
+            "amientos", "imientos", "amiento", "imiento", "aciones", "iciones", "ciones",
+            "acion", "icion", "cion", "mente", "ados", "adas", "idos", "idas", "ores", "oras",
+            "ado", "ada", "ido", "ida", "ora", "es", "s");
+
+    /**
+     * DEF-16: raiz ligera para comparar palabras de la misma familia en espanol:
+     * "ubicados", "ubicada" y "ubicacion" -> "ubic"; "ponedoras" y "ponedora" -> "poned";
+     * "cuyes" -> "cuy". Se quita la primera terminacion que coincida, dejando al menos 3 letras.
+     * (Distinta de raiz(), que solo quita el plural y la usa contextoDelProducto.)
+     */
+    static String raizTema(String palabra) {
+        for (String sufijo : SUFIJOS) {
+            if (palabra.endsWith(sufijo) && palabra.length() - sufijo.length() >= 3) {
+                return palabra.substring(0, palabra.length() - sufijo.length());
+            }
+        }
+        return palabra;
+    }
+
+    /** DEF-16: la respuesta del modelo admite que no sabe, niega o remite a un asesor. */
+    static boolean respuestaIncierta(String answer) {
+        String low = (answer == null) ? "" : normalizar(answer);
+        return INCERTIDUMBRE.stream().anyMatch(low::contains);
     }
 
     /**

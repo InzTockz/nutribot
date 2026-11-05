@@ -81,6 +81,14 @@ nutribot:
     allowed-origins: ${NUTRIBOT_CORS_ORIGINS:http://localhost:4200}
   whatsapp:
     advisor-number: "51932996032"   # numero real de Battilana (51 = Peru + 932996032); verificar si es el del asesor
+  # DEF-17: respuesta fija cuando el cliente pregunta por la direccion, la tienda o donde comprar.
+  # Si se deja vacio se usa el texto oficial definido en ChatService.MENSAJE_UBICACION.
+  empresa:
+    mensaje-ubicacion: >-
+      Battilana Nutrición no cuenta con tienda ni punto de venta al público: todas las ventas
+      se atienden por WhatsApp con un asesor, que toma tu pedido, confirma el precio y la
+      disponibilidad y coordina la entrega a domicilio o en granja. Nuestra planta central se
+      encuentra en Calle Los Claveles Mz. A Lote A-2, Urb. Fundo Casco Viejo, Lurín, Lima.
   # DEF-15: horario de atencion de los asesores (lo decide el backend, en hora de Peru; domingo cerrado)
   asesor:
     zona-horaria: America/Lima

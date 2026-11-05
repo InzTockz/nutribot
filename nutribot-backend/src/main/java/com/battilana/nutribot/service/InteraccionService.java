@@ -95,7 +95,8 @@ public class InteraccionService {
      * cliente (texto fijo, no hay nada que evaluar) y los errores tecnicos (no hubo respuesta).
      */
     public static boolean esRevisable(Interaccion i) {
-        return i.getCamino() != CaminoConsulta.ASESOR && i.getCamino() != CaminoConsulta.ERROR;
+        return i.getCamino() != CaminoConsulta.ASESOR && i.getCamino() != CaminoConsulta.UBICACION
+                && i.getCamino() != CaminoConsulta.ERROR;   // DEF-17: la respuesta fija no se revisa
     }
 
     private Interaccion buscar(Long id) {
