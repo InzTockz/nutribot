@@ -84,6 +84,15 @@ public class ChatService {
             "donde puedo comprar", "donde comprar", "donde venden", "donde los encuentro",
             "atienden en persona", "visitarlos", "ir a comprar");
 
+    /**
+     * DEF-21: preguntas por un dato de la ficha tecnica (nutrientes). Como en los precios (DEF-08),
+     * se le entrega al modelo SOLO el bloque del producto consultado: con fragmentos de varias
+     * fichas parecidas mezclaba productos ("codornices" -> "16.5% de las gallinas ponedoras").
+     */
+    private static final List<String> ES_CONSULTA_FICHA = List.of(
+            "proteina", "grasa", "calcio", "fosforo", "fibra", "lisina", "metionina", "energia",
+            "vitamina", "composicion", "nutriente", "humedad", "ceniza", "kcal");
+
     /** DEF-17: si ademas pide un precio, manda la ruta de precios (no la respuesta fija). */
     private static final List<String> PIDE_MONTO = List.of(
             "precio", "costo", "cuesta", "cuestan", "vale", "valen", "cobran", "cotiz");
@@ -224,6 +233,104 @@ public class ChatService {
                 + "): déjanos tus datos en el formulario y un asesor te contactará.";
     }
 
+    /** DEF-18: montos en soles ("S/ 95", "S/95.00", "S/ 1,250.50"). */
+    private static final java.util.regex.Pattern MONTO =
+            java.util.regex.Pattern.compile("S/\\.?\\s*(\\d{1,3}(?:,\\d{3})+(?:\\.\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)");
+
+    /** DEF-18: montos de la respuesta que NO aparecen en el texto de referencia ("95.00", ...). */
+    static List<String> montosInventados(String respuesta, String referencia) {
+        Set<java.math.BigDecimal> permitidos = montos(referencia);
+        List<String> inventados = new java.util.ArrayList<>();
+        for (java.math.BigDecimal m : montos(respuesta)) {
+            if (permitidos.stream().noneMatch(p -> p.compareTo(m) == 0)) {
+                inventados.add(m.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
+            }
+        }
+        return inventados;
+    }
+
+    /** DEF-18: todos los montos en soles de un texto, como numeros (95 == 95.00). */
+    static Set<java.math.BigDecimal> montos(String texto) {
+        Set<java.math.BigDecimal> encontrados = new java.util.LinkedHashSet<>();
+        if (texto == null) {
+            return encontrados;
+        }
+        java.util.regex.Matcher m = MONTO.matcher(texto);
+        while (m.find()) {
+            String numero = m.group(1);
+            numero = numero.matches("\\d{1,3}(,\\d{3})+(\\.\\d{1,2})?") ? numero.replace(",", "") : numero.replace(',', '.');
+            encontrados.add(new java.math.BigDecimal(numero));
+        }
+        return encontrados;
+    }
+
+    /** DEF-19: porcentajes ("22%", "0.95 %", "4,5%"). */
+    private static final java.util.regex.Pattern PORCENTAJE =
+            java.util.regex.Pattern.compile("(?<![\\d.,])(\\d+(?:[.,]\\d+)?)\\s*%");
+
+    /** DEF-19: respuesta segura cuando el modelo escribio un porcentaje que no existe en la ficha. */
+    static final String DATO_NO_CONFIRMADO =
+            "No pude confirmar ese dato con exactitud en la ficha técnica. Te sugiero consultarlo con un asesor de Battilana.";
+
+    /** DEF-19: porcentajes de la respuesta que NO aparecen como numero en el texto de referencia. */
+    static List<String> porcentajesInventados(String respuesta, String referencia) {
+        Set<java.math.BigDecimal> permitidos = porcentajes(referencia);
+        List<String> inventados = new java.util.ArrayList<>();
+        for (java.math.BigDecimal p : porcentajes(respuesta)) {
+            if (permitidos.stream().noneMatch(x -> x.compareTo(p) == 0)) {
+                inventados.add(p.stripTrailingZeros().toPlainString() + "%");
+            }
+        }
+        return inventados;
+    }
+
+    /** DEF-19: todos los porcentajes de un texto, como numeros (22 == 22.0; 0.95 != 95). */
+    static Set<java.math.BigDecimal> porcentajes(String texto) {
+        Set<java.math.BigDecimal> encontrados = new java.util.LinkedHashSet<>();
+        if (texto == null) {
+            return encontrados;
+        }
+        java.util.regex.Matcher m = PORCENTAJE.matcher(texto);
+        while (m.find()) {
+            encontrados.add(new java.math.BigDecimal(m.group(1).replace(',', '.')));
+        }
+        return encontrados;
+    }
+
+    /** DEF-18: respuesta segura cuando el modelo escribio un monto que no existe en el contexto. */
+    static String respuestaSinMonto(String fuente) {
+        if (normalizar(fuente == null ? "" : fuente).contains("variable")) {
+            return "El precio de este producto es variable. Te sugiero consultar el precio vigente y la "
+                    + "disponibilidad con un asesor de Battilana.";
+        }
+        return "No puedo confirmarte el precio exacto en este momento. Te sugiero consultar el precio "
+                + "vigente y la disponibilidad con un asesor de Battilana.";
+    }
+
+    private static String textoDe(List<Document> documentos) {
+        return documentos == null ? "" : documentos.stream()
+                .map(Document::getText)
+                .filter(t -> t != null)
+                .collect(Collectors.joining("\n"));
+    }
+
+    /** DEF-18: lo que el bot ya respondio en esta conversacion (un monto repetido no es inventado). */
+    private String historialDelBot(String convId) {
+        try {
+            List<org.springframework.ai.chat.messages.Message> mensajes = nutribotChatMemory.get(convId);
+            if (mensajes == null) {
+                return "";
+            }
+            return mensajes.stream()
+                    .filter(m -> m.getMessageType() == org.springframework.ai.chat.messages.MessageType.ASSISTANT)
+                    .map(org.springframework.ai.chat.messages.Message::getText)
+                    .filter(t -> t != null)
+                    .collect(Collectors.joining(" "));
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
     /** DEF-15: respuesta cuando el cliente pide un asesor, segun el horario de atencion. */
     String mensajeAsesor(boolean asesorDisponible) {
         if (asesorDisponible) {
@@ -352,7 +459,10 @@ public class ChatService {
             return new Resultado(SIN_INFORMACION, "BOTON", CaminoConsulta.SIN_INFO);
         }
 
+        // DEF-18: lo que el bot ya dijo ANTES de esta respuesta (la memoria guarda la nueva al responder)
+        String historialPrevio = historialDelBot(convId);
         String answer;
+        String fuente;   // DEF-18: texto que se le entrego al modelo (para verificar los montos)
         if (consultaPrecio) {
             // DEF-10: primero acotamos la RECUPERACION a la lista de precios. Sin esto, una
             // consulta como "¿cuanto vale el alimento de gallinas?" llena los 6 cupos con
@@ -379,6 +489,16 @@ public class ChatService {
             // contexto al bloque del producto consultado y se lo inyectamos ya acotado, de modo
             // que le resulte imposible atribuirle el precio de otro producto.
             String contexto = contextoDelProducto(base, sujeto);
+            fuente = contexto;
+            answer = nutribotContextoChatClient.prompt()
+                    .user("Contexto:\n" + contexto + "\n\nPregunta del cliente: " + message)
+                    .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, convId))
+                    .call()
+                    .content();
+        } else if (ES_CONSULTA_FICHA.stream().anyMatch(texto::contains)) {
+            // DEF-21: dato de ficha tecnica -> contexto acotado al bloque del producto consultado
+            String contexto = contextoDelProducto(relevantes, sujeto);
+            fuente = contexto;
             answer = nutribotContextoChatClient.prompt()
                     .user("Contexto:\n" + contexto + "\n\nPregunta del cliente: " + message)
                     .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, convId))
@@ -386,12 +506,37 @@ public class ChatService {
                     .content();
         } else {
             // Respuesta RAG normal, recordando el historial de esta conversacion (HU05)
+            // DEF-19: el QuestionAnswerAdvisor (ChatConfig) recupera los topK mas parecidos SIN umbral;
+            // se replica esa busqueda para verificar los datos contra lo mismo que lee el modelo.
+            List<Document> comoElAdvisor = vectorStore.similaritySearch(SearchRequest.builder()
+                    .query(consulta)
+                    .topK(topK)
+                    .build());
+            fuente = textoDe(relevantes) + "\n" + textoDe(comoElAdvisor);
             answer = nutribotChatClient.prompt()
                     .user(consulta)
                     .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, convId))
                     .call()
                     .content();
         }
+        // DEF-18: verificacion de montos. Todo "S/ n" de la respuesta debe existir en lo que se le
+        // entrego al modelo o en lo que el bot ya dijo en esta conversacion; si no, es inventado
+        // (el modelo llego a copiar "S/ 95.00" del ejemplo del prompt para un precio VARIABLE).
+        List<String> inventados = montosInventados(answer, fuente + " " + historialPrevio);
+        if (!inventados.isEmpty()) {
+            log.warn("DEF-18: monto(s) {} que no figuran en el contexto para \"{}\" -> respuesta segura", inventados, message);
+            return new Resultado(respuestaSinMonto(fuente), "BOTON",
+                    consultaPrecio ? CaminoConsulta.PRECIO : CaminoConsulta.GENERAL);
+        }
+        // DEF-19: lo mismo con los porcentajes de las fichas tecnicas. El modelo llego a responder
+        // "95% de proteina" tomando el 95 de "calcio 0.95%" (0.95 != 95).
+        List<String> porcentajes = porcentajesInventados(answer, fuente + " " + historialPrevio);
+        if (!porcentajes.isEmpty()) {
+            log.warn("DEF-19: porcentaje(s) {} que no figuran en el contexto para \"{}\" -> respuesta segura", porcentajes, message);
+            return new Resultado(DATO_NO_CONFIRMADO, "BOTON",
+                    consultaPrecio ? CaminoConsulta.PRECIO : CaminoConsulta.GENERAL);
+        }
+
         boolean incierto = respuestaIncierta(answer);
 
         if (consultaPrecio) {
@@ -548,10 +693,12 @@ public class ChatService {
      * dejar al modelo sin informacion.
      */
     static String contextoDelProducto(List<Document> documentos, String sujeto) {
+        // DEF-21: los fragmentos se unen con una LINEA EN BLANCO para que el ultimo parrafo de un
+        // fragmento no se pegue al primero del siguiente (mezclaba fichas de productos distintos)
         String completo = documentos.stream()
                 .map(Document::getText)
                 .filter(t -> t != null && !t.isBlank())
-                .collect(Collectors.joining("\n"));
+                .collect(Collectors.joining("\n\n"));
 
         if (sujeto == null || sujeto.isBlank()) {
             return completo;

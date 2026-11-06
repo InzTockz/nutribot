@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.core.io.FileSystemResource;
@@ -68,13 +67,9 @@ public class IngestionService {
             List<Document> documents = reader.read();
             documents.forEach(d -> d.getMetadata().put("source", fileName));
 
-            // 2) TRANSFORM: fragmentar
-            // Fragmentos mas pequenos y enfocados -> mejor precision del RAG (evita volcar bloques enteros)
-            List<Document> chunks = TokenTextSplitter.builder()
-                    .withChunkSize(300)
-                    .withMinChunkSizeChars(150)
-                    .build()
-                    .apply(documents);
+            // 2) TRANSFORM: fragmentar respetando parrafos y titulos (DEF-20: TokenTextSplitter
+            // cortaba en el punto decimal de "1.45%" y dejaba numeros huerfanos)
+            List<Document> chunks = FragmentadorPorParrafos.fragmentar(documents);
 
             // 3) ACTUALIZAR: si el documento ya existia, elimina vectores y registro previos
             borrarVectoresPorFuente(fileName);
